@@ -193,11 +193,24 @@ function App(){
   </nav>
 
   <div className="flex-1 min-w-0">
-   {view==="dash"&&<Dashboard assets={assets} PAL={PAL} onGoto={gotoLedger} onOpen={open}/>}
-   {view==="ledger"&&<Ledger {...{assets,depts,cats,PAL,q,setQ,fDept,setFDept,fStat,setFStat,fCat,setFCat,open,onAdd:()=>setModal("add")}}/>}
-   {view==="transfer"&&<Transfers assets={assets} open={open}/>}
-   {view==="dispose"&&<Disposal assets={assets} open={open}/>}
-   {view==="labels"&&<Labels assets={assets} depts={depts} onPrintOne={setPrintA} onPrintBatch={setPrintBatch}/>}
+   <div className="sm:hidden sticky top-0 z-20 flex items-center justify-between px-4" style={{height:48,background:"#FBFAF7",borderBottom:`1px solid ${LINE}`}}>
+    <span style={{letterSpacing:".14em"}} className="text-[14px] font-medium">資産管理</span>
+    <div className="flex items-center gap-1">
+     {LANGS.map(([k,lb])=><button key={k} onClick={()=>setLang(k)} style={{background:lang===k?AI:"#fff",color:lang===k?"#fff":"#6E6B62",border:`1px solid ${lang===k?AI:LINE}`}} className="h-6 px-1.5 rounded text-[10.5px] leading-none">{lb}</button>)}
+     {isSuper&&<button onClick={()=>setPermOpen(true)} className="h-6 px-2 rounded text-[10.5px]" style={{border:`1px solid ${LINE}`,color:AI}}>{t("permMgmt")}</button>}
+     <button onClick={logout} className="h-6 px-2 rounded text-[10.5px]" style={{border:`1px solid ${LINE}`,color:SUB}}>{t("logout")}</button>
+    </div>
+   </div>
+   <div className="pb-20 sm:pb-0">
+    {view==="dash"&&<Dashboard assets={assets} PAL={PAL} onGoto={gotoLedger} onOpen={open}/>}
+    {view==="ledger"&&<Ledger {...{assets,depts,cats,PAL,q,setQ,fDept,setFDept,fStat,setFStat,fCat,setFCat,open,onAdd:()=>setModal("add")}}/>}
+    {view==="transfer"&&<Transfers assets={assets} open={open}/>}
+    {view==="dispose"&&<Disposal assets={assets} open={open}/>}
+    {view==="labels"&&<Labels assets={assets} depts={depts} onPrintOne={setPrintA} onPrintBatch={setPrintBatch}/>}
+   </div>
+   <div className="sm:hidden fixed bottom-0 left-0 right-0 z-30 flex" style={{background:"rgba(251,250,247,.96)",backdropFilter:"blur(6px)",borderTop:`1px solid ${LINE}`}}>
+    {NAVK.map(([k,ic])=>{const on=view===k;return <button key={k} onClick={()=>setView(k)} className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2" style={{color:on?AI:"#8A8781"}}><Svg n={ic} s={18}/><span className="text-[9.5px] leading-none">{t(k)}</span></button>;})}
+   </div>
   </div>
 
   {cur&&<Drawer {...{cur,photos:photos[cur.id]||[],edit,setEdit,patch,addPhotoFiles,delPhotoIdx,openCamera:setCamFor,close:()=>setSel(null),transfer:()=>setModal("transfer"),dispose:()=>setModal("dispose"),print:()=>setPrintA(cur)}}/>}
@@ -278,15 +291,13 @@ function Ledger({assets,depts,cats,PAL,q,setQ,fDept,setFDept,fStat,setFStat,fCat
    <span style={{color:SUB}} className="ml-auto text-[12px]">{list.length} {t("items")}</span>
   </div>
   <div style={{background:"#fff",border:`1px solid ${LINE}`}} className="rounded-lg overflow-hidden mt-3">
-   <div style={{color:SUB,borderBottom:`1px solid ${LINE}`}} className="grid grid-cols-[110px_1fr_84px_88px_1fr_78px] gap-3 px-4 py-2.5 text-[11px]"><div>{t("no")}</div><div>{t("name")}</div><div>{t("dept")}</div><div>{t("user")}</div><div>{t("loc")}</div><div>{t("status")}</div></div>
    {list.length===0&&<div className="px-4 py-16 text-center" style={{color:SUB}}>{t("noMatch")}</div>}
-   {list.map(a=><button key={a.id} onClick={()=>open(a.id)} style={{borderBottom:`1px solid ${LINE}`}} className="w-full text-left grid grid-cols-[110px_1fr_84px_88px_1fr_78px] gap-3 px-4 py-2.5 items-center hover:bg-stone-50">
-    <div style={{color:SUB}} className="text-[11.5px] tabular-nums">{a.id}</div>
-    <div className="min-w-0"><div className="truncate">{nm(a)}</div><Sub a={a}/></div>
-    <div><Dept d={a.dept}/></div>
-    <div className="truncate" style={{color:a.user?INK:"#C9C6BE"}}>{a.user||"—"}</div>
-    <div className="truncate" style={{color:a.location?INK:"#C9C6BE"}}>{a.location||"—"}</div>
-    <div><Badge s={a.status}/></div>
+   {list.map(a=><button key={a.id} onClick={()=>open(a.id)} style={{borderBottom:`1px solid ${LINE}`}} className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-stone-50">
+    <div className="min-w-0 flex-1">
+     <div className="flex items-center gap-2"><span className="truncate">{nm(a)}</span><span style={{color:SUB}} className="text-[11px] tabular-nums shrink-0 hidden sm:inline">{a.id}</span></div>
+     <div style={{color:SUB}} className="text-[11px] truncate mt-0.5 flex items-center gap-1.5"><Dept d={a.dept}/>{a.user&&<span className="shrink-0">· {a.user}</span>}{a.location&&<span className="truncate">· {a.location}</span>}</div>
+    </div>
+    <Badge s={a.status}/>
    </button>)}
   </div>
  </div>;
@@ -299,12 +310,10 @@ function Transfers({assets,open}){
  const rows=useMemo(()=>assets.flatMap(a=>(a.hist||[]).filter(h=>h.t==="划拨").map(h=>({...h,id:a.id,a}))).sort((x,y)=>(y.d||"").localeCompare(x.d||"")),[assets]);
  return <div className="max-w-[1080px] mx-auto px-6 lg:px-10 py-8"><H title={t("transfer")} en="Transfers"/>
   <div style={{background:"#fff",border:`1px solid ${LINE}`}} className="rounded-lg overflow-hidden mt-5">
-   <div style={{color:SUB,borderBottom:`1px solid ${LINE}`}} className="grid grid-cols-[92px_160px_1fr] gap-3 px-4 py-2.5 text-[11px]"><div>{t("date")}</div><div>{t("asset")}</div><div>{t("transferDetail")}</div></div>
    {rows.length===0&&<div className="px-4 py-16 text-center" style={{color:SUB}}>{t("noTransfer")}</div>}
-   {rows.map((h,i)=><button key={i} onClick={()=>open(h.id)} style={{borderBottom:`1px solid ${LINE}`}} className="w-full text-left grid grid-cols-[92px_160px_1fr] gap-3 px-4 py-2.5 items-center hover:bg-stone-50">
-    <div style={{color:SUB}} className="text-[11.5px] tabular-nums">{h.d}</div>
-    <div className="truncate">{nm(h.a)} <span style={{color:SUB}} className="text-[11px] tabular-nums">· {h.id}</span></div>
-    <div className="truncate text-[12.5px]" style={{color:"#5C594F"}}>{h.x}</div></button>)}
+   {rows.map((h,i)=><button key={i} onClick={()=>open(h.id)} style={{borderBottom:`1px solid ${LINE}`}} className="w-full text-left px-4 py-3 flex items-start gap-3 hover:bg-stone-50">
+    <span style={{color:SUB}} className="text-[11px] tabular-nums shrink-0 w-[70px]">{h.d}</span>
+    <div className="min-w-0 flex-1"><div className="truncate">{nm(h.a)}</div><div className="truncate text-[12px] mt-0.5" style={{color:"#5C594F"}}>{h.x}</div></div></button>)}
   </div>
  </div>;
 }
@@ -316,14 +325,10 @@ function Disposal({assets,open}){
  return <div className="max-w-[1080px] mx-auto px-6 lg:px-10 py-8"><H title={t("dispose")} en="Disposal"/>
   <div style={{color:SUB}} className="text-[12px] mt-2">{t("disposeDesc")} {rows.length} {t("items")}.</div>
   <div style={{background:"#fff",border:`1px solid ${LINE}`}} className="rounded-lg overflow-hidden mt-4">
-   <div style={{color:SUB,borderBottom:`1px solid ${LINE}`}} className="grid grid-cols-[110px_1fr_74px_86px_1fr] gap-3 px-4 py-2.5 text-[11px]"><div>{t("no")}</div><div>{t("name")}</div><div>{t("destination")}</div><div>{t("date")}</div><div>{t("reason")}</div></div>
    {rows.length===0&&<div className="px-4 py-16 text-center" style={{color:SUB}}>—</div>}
-   {rows.map(a=><button key={a.id} onClick={()=>open(a.id)} style={{borderBottom:`1px solid ${LINE}`}} className="w-full text-left grid grid-cols-[110px_1fr_74px_86px_1fr] gap-3 px-4 py-2.5 items-center hover:bg-stone-50">
-    <div style={{color:SUB}} className="text-[11.5px] tabular-nums">{a.id}</div>
-    <div className="min-w-0"><div className="truncate">{nm(a)}</div><div className="mt-0.5"><Dept d={a.dept}/></div></div>
-    <div><Badge s={a.status}/></div>
-    <div style={{color:SUB}} className="text-[11.5px] tabular-nums">{a.dd}</div>
-    <div className="truncate text-[12px]" style={{color:"#5C594F"}}>{a.reason||"—"}</div></button>)}
+   {rows.map(a=><button key={a.id} onClick={()=>open(a.id)} style={{borderBottom:`1px solid ${LINE}`}} className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-stone-50">
+    <div className="min-w-0 flex-1"><div className="flex items-center gap-2"><span className="truncate">{nm(a)}</span></div><div style={{color:SUB}} className="text-[11px] truncate mt-0.5 flex items-center gap-1.5"><Dept d={a.dept}/><span>· {a.dd}</span>{a.reason&&<span className="truncate">· {a.reason}</span>}</div></div>
+    <Badge s={a.status}/></button>)}
   </div>
  </div>;
 }
@@ -345,7 +350,7 @@ function Labels({assets,depts,onPrintOne,onPrintBatch}){
   <div style={{background:"#fff",border:`1px solid ${LINE}`}} className="rounded-lg overflow-hidden mt-3">
    {list.map(a=><label key={a.id} style={{borderBottom:`1px solid ${LINE}`}} className="flex items-center gap-3 px-4 py-2.5 hover:bg-stone-50 cursor-pointer">
     <input type="checkbox" checked={!!picked[a.id]} onChange={e=>setPicked(p=>({...p,[a.id]:e.target.checked}))}/>
-    <span style={{color:SUB}} className="text-[11.5px] tabular-nums w-[104px]">{a.id}</span>
+    <span style={{color:SUB}} className="text-[11.5px] tabular-nums w-[104px] hidden sm:inline shrink-0">{a.id}</span>
     <span className="truncate flex-1">{nm(a)}</span><Dept d={a.dept}/>
     <button onClick={e=>{e.preventDefault();onPrintOne(a);}} style={{border:`1px solid ${LINE}`}} className="h-7 px-2.5 rounded text-[11.5px] flex items-center gap-1"><Svg n="printer" s={12}/>{t("print")}</button>
    </label>)}
