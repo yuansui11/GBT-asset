@@ -159,15 +159,16 @@ function App(){
  function open(id){setSel(id);setEdit(false);loadPhotos(id);}
  function patch(id,fields,h){const c=docs[id]||byId[id]||{};const data={...fields};if(h)data.hist=[...(c.hist||byId[id]?.hist||[]),h];DB.collection("assets").doc(String(id)).set(data,{merge:true});}
  async function loadPhotos(id){try{const d=await DB.collection("photos").doc(String(id)).get();setPhotos(p=>({...p,[id]:d.exists?((d.data()||{}).list||[]):[]}));}catch{setPhotos(p=>({...p,[id]:[]}));}}
- function pushPhoto(id,b64){setPhotos(p=>{const list=[...(p[id]||[]),b64].slice(0,3);DB.collection("photos").doc(String(id)).set({list});return{...p,[id]:list};});}
+ function pushPhoto(id,b64){setPhotos(p=>{const list=[...(p[id]||[]),b64].slice(0,3);DB.collection("photos").doc(String(id)).set({list});return{...p,[id]:list};});patch(id,{},{d:today(),t:"照片",x:"添加照片",by:who});}
  function addPhotoBlob(id,blob){compressToDataURL(blob,b64=>pushPhoto(id,b64));}
  function addPhotoFiles(id,files){[...files].slice(0,3).forEach(f=>compressToDataURL(f,b64=>pushPhoto(id,b64)));}
- function delPhotoIdx(id,idx){setPhotos(p=>{const list=(p[id]||[]).filter((_,i)=>i!==idx);DB.collection("photos").doc(String(id)).set({list});return{...p,[id]:list};});}
+ function delPhotoIdx(id,idx){setPhotos(p=>{const list=(p[id]||[]).filter((_,i)=>i!==idx);DB.collection("photos").doc(String(id)).set({list});return{...p,[id]:list};});patch(id,{},{d:today(),t:"照片",x:"删除照片",by:who});}
  function gotoLedger(f){setFDept(f.dept||"");setFStat(f.status||"");setFCat(f.cat||"");setQ("");setView("ledger");}
  function login(u,p){const a=(cfg&&cfg.accounts||[]).find(x=>x.u===(u||"").trim()&&x.p===p);if(a){try{sessionStorage.setItem("amos_user",a.u);}catch{}setAuth(a);return true;}return false;}
  function logout(){try{sessionStorage.removeItem("amos_user");}catch{}setAuth(null);}
  const isSuper=auth&&auth.role==="super";
  const perms=isSuper?{edit:1,add:1,transfer:1,dispose:1,photo:1}:((auth&&auth.perms)||{});
+ const who=(auth&&auth.name)||"";
  function saveCfg(next){setCfg(next);DB.collection("config").doc("main").set(next);}
  const ctx={lang,t,sl,cl,nm,PAL,perms,isSuper};
  if(!auth) return <L.Provider value={ctx}><Login t={t} ready={!!cfg} onLogin={login}/></L.Provider>;
@@ -213,10 +214,10 @@ function App(){
    </div>
   </div>
 
-  {cur&&<Drawer {...{cur,photos:photos[cur.id]||[],edit,setEdit,patch,addPhotoFiles,delPhotoIdx,openCamera:setCamFor,close:()=>setSel(null),transfer:()=>setModal("transfer"),dispose:()=>setModal("dispose"),print:()=>setPrintA(cur)}}/>}
-  {modal==="add"&&<AddModal depts={depts} cats={cats} onClose={()=>setModal(null)} onSave={a=>{DB.collection("assets").doc(String(a.id)).set({...a,add:true,hist:[{d:today(),t:"新增",x:"手动新增资产"}]});setModal(null);}}/>}
-  {modal==="transfer"&&cur&&<TransferModal cur={cur} onClose={()=>setModal(null)} onSave={f=>{patch(cur.id,{user:f.user,manager:f.manager,location:f.location},{d:f.date,t:"划拨",x:`${f.from||"—"} → ${f.user||"—"}${f.location?"，"+f.location:""}${f.note?"（"+f.note+"）":""}`});setModal(null);}}/>}
-  {modal==="dispose"&&cur&&<DisposeModal onClose={()=>setModal(null)} onSave={f=>{patch(cur.id,{status:f.status,disp:f.status},{d:f.date,t:f.status,x:f.reason||f.status});setModal(null);}}/>}
+  {cur&&<Drawer {...{cur,who,cats,photos:photos[cur.id]||[],edit,setEdit,patch,addPhotoFiles,delPhotoIdx,openCamera:setCamFor,close:()=>setSel(null),transfer:()=>setModal("transfer"),dispose:()=>setModal("dispose"),print:()=>setPrintA(cur)}}/>}
+  {modal==="add"&&<AddModal depts={depts} cats={cats} onClose={()=>setModal(null)} onSave={a=>{DB.collection("assets").doc(String(a.id)).set({...a,add:true,hist:[{d:today(),t:"新增",x:"手动新增资产",by:who}]});setModal(null);}}/>}
+  {modal==="transfer"&&cur&&<TransferModal cur={cur} onClose={()=>setModal(null)} onSave={f=>{patch(cur.id,{user:f.user,manager:f.manager,location:f.location},{d:f.date,t:"划拨",x:`${f.from||"—"} → ${f.user||"—"}${f.location?"，"+f.location:""}${f.note?"（"+f.note+"）":""}`,by:who});setModal(null);}}/>}
+  {modal==="dispose"&&cur&&<DisposeModal onClose={()=>setModal(null)} onSave={f=>{patch(cur.id,{status:f.status,disp:f.status},{d:f.date,t:f.status,x:f.reason||f.status,by:who});setModal(null);}}/>}
   {printA&&<PrintLabel a={printA} onDone={()=>setPrintA(null)}/>}
   {printBatch&&<BatchPrint list={printBatch} onDone={()=>setPrintBatch(null)}/>}
   {camFor&&<Camera onClose={()=>setCamFor(null)} onCapture={b=>addPhotoBlob(camFor,b)}/>}
@@ -360,8 +361,13 @@ function Labels({assets,depts,onPrintOne,onPrintBatch}){
 }
 
 /* ---------- 档案抽屉 ---------- */
-function Drawer({cur,photos,edit,setEdit,patch,addPhotoFiles,delPhotoIdx,openCamera,close,transfer,dispose,print}){
+function Drawer({cur,who,cats,photos,edit,setEdit,patch,addPhotoFiles,delPhotoIdx,openCamera,close,transfer,dispose,print}){
  const {t,cl,nm,perms}=useL(); const fileRef=useRef();
+ const [draft,setDraft]=useState(null); const [zoom,setZoom]=useState(null);
+ useEffect(()=>{ if(edit&&!draft) setDraft({sn:cur.sn||"",gb:cur.gb||"",old:cur.old||"",cat:cur.cat||"",cap:cur.cap||"",val:cur.val||"",net:cur.net||"",user:cur.user||"",manager:cur.manager||"",location:cur.location||"",note:cur.note||""}); if(!edit&&draft) setDraft(null); },[edit,cur.id]);
+ const dset=(k,v)=>setDraft(d=>({...d,[k]:v}));
+ const EF=[["sn","序列号",0],["gb","公贝编号",0],["old","旧资产编号",0],["cat","资产分类",0],["cap","资本化日期",0],["val","原值",1],["net","净值",1],["user","使用人",0],["manager","管理人",0],["location","存放位置",0],["note","备注",0]];
+ function finishEdit(){ if(!draft){setEdit(false);return;} const fields={},ch=[]; EF.forEach(([k,lb,num])=>{ let nv=num?(Number(draft[k])||0):(draft[k]||""); let ov=num?(Number(cur[k])||0):(cur[k]||""); if(String(nv)!==String(ov)){ fields[k]=nv; const sh=x=>num?fmt(x):(x===""?"—":x); ch.push(lb+" "+sh(ov)+"→"+sh(nv)); } }); if(ch.length) patch(cur.id,fields,{d:today(),t:"编辑",x:ch.join("；"),by:who}); setEdit(false); setDraft(null); }
  return <>
   <div onClick={close} className="fixed inset-0 z-30" style={{background:"rgba(35,34,30,.28)"}}/>
   <aside className="fixed right-0 top-0 bottom-0 z-40 w-full max-w-[500px] overflow-y-auto" style={{background:"#fff",borderLeft:`1px solid ${LINE}`}}>
@@ -376,19 +382,30 @@ function Drawer({cur,photos,edit,setEdit,patch,addPhotoFiles,delPhotoIdx,openCam
     </div>
     <div className="flex items-center gap-1.5 mt-4 flex-wrap">
      {perms.transfer&&<Act ic="tf" label={t("aTransfer")} onClick={transfer}/>}
-     {perms.dispose&&(DISPOSE.includes(cur.status)?<Act ic="rotate" label={t("aRestore")} onClick={()=>patch(cur.id,{status:"在用",disp:""},{d:today(),t:"恢复",x:"恢复为在用"})}/>:<Act ic="trash" label={t("aDispose")} onClick={dispose}/>)}
+     {perms.dispose&&(DISPOSE.includes(cur.status)?<Act ic="rotate" label={t("aRestore")} onClick={()=>patch(cur.id,{status:"在用",disp:""},{d:today(),t:"恢复",x:"恢复为在用",by:who})}/>:<Act ic="trash" label={t("aDispose")} onClick={dispose}/>)}
      <Act ic="printer" label={t("aLabel")} onClick={print}/>
-     {perms.edit&&<Act ic={edit?"check":"pencil"} label={edit?t("aDone"):t("aEdit")} onClick={()=>setEdit(!edit)} primary={edit}/>}
+     {perms.edit&&<Act ic={edit?"check":"pencil"} label={edit?t("aDone"):t("aEdit")} onClick={()=>edit?finishEdit():setEdit(true)} primary={edit}/>}
     </div>
    </div>
    <div className="px-6 py-5 space-y-6">
-    <Section title={t("basic")}><DL rows={[[t("sn"),cur.sn||"—"],[t("gb"),cur.gb||"—"],[t("old"),cur.old||"—"],[t("cat"),cl(cur.cat)],[t("cap"),cur.cap||"—"],[t("val"),fmt(cur.val)],[t("net"),fmt(cur.net)]]}/></Section>
+    <Section title={t("basic")}>
+     {edit&&draft?<div className="grid grid-cols-2 gap-x-4 gap-y-2.5">
+       <Field label={t("sn")} v={draft.sn} on={v=>dset("sn",v)}/>
+       <Field label={t("gb")} v={draft.gb} on={v=>dset("gb",v)}/>
+       <Field label={t("old")} v={draft.old} on={v=>dset("old",v)}/>
+       <label className="block"><span style={{color:SUB}} className="text-[11px]">{t("cat")}</span><select value={draft.cat} onChange={e=>dset("cat",e.target.value)} style={{border:`1px solid ${LINE}`}} className="mt-1 w-full rounded-md px-2 h-8 text-[12.5px] outline-none focus:border-stone-400">{cats.map(c=><option key={c} value={c}>{cl(c)}</option>)}</select></label>
+       <label className="block"><span style={{color:SUB}} className="text-[11px]">{t("cap")}</span><input type="date" value={draft.cap} onChange={e=>dset("cap",e.target.value)} style={{border:`1px solid ${LINE}`}} className="mt-1 w-full rounded-md px-2.5 h-8 text-[12.5px] outline-none focus:border-stone-400"/></label>
+       <label className="block"><span style={{color:SUB}} className="text-[11px]">{t("val")}</span><input type="number" value={draft.val} onChange={e=>dset("val",e.target.value)} style={{border:`1px solid ${LINE}`}} className="mt-1 w-full rounded-md px-2.5 h-8 text-[12.5px] outline-none focus:border-stone-400"/></label>
+       <label className="block"><span style={{color:SUB}} className="text-[11px]">{t("net")}</span><input type="number" value={draft.net} onChange={e=>dset("net",e.target.value)} style={{border:`1px solid ${LINE}`}} className="mt-1 w-full rounded-md px-2.5 h-8 text-[12.5px] outline-none focus:border-stone-400"/></label>
+      </div>
+      :<DL rows={[[t("sn"),cur.sn||"—"],[t("gb"),cur.gb||"—"],[t("old"),cur.old||"—"],[t("cat"),cl(cur.cat)],[t("cap"),cur.cap||"—"],[t("val"),fmt(cur.val)],[t("net"),fmt(cur.net)]]}/>}
+    </Section>
     <Section title={t("mgmt")}>
-     {edit?<div className="space-y-2.5"><Field label={t("sn")} v={cur.sn} on={v=>patch(cur.id,{sn:v})}/><Field label={t("user")} v={cur.user} on={v=>patch(cur.id,{user:v})}/><Field label={t("mgr")} v={cur.manager} on={v=>patch(cur.id,{manager:v})}/><Field label={t("loc")} v={cur.location} on={v=>patch(cur.id,{location:v})}/><Field label={t("note")} v={cur.note} on={v=>patch(cur.id,{note:v})} area/></div>
+     {edit&&draft?<div className="space-y-2.5"><Field label={t("user")} v={draft.user} on={v=>dset("user",v)}/><Field label={t("mgr")} v={draft.manager} on={v=>dset("manager",v)}/><Field label={t("loc")} v={draft.location} on={v=>dset("location",v)}/><Field label={t("note")} v={draft.note} on={v=>dset("note",v)} area/></div>
       :<DL rows={[[t("user"),cur.user||"—"],[t("mgr"),cur.manager||"—"],[t("loc"),cur.location||"—"],[t("note"),cur.note||"—"]]}/>}
     </Section>
     <Section title={t("photos")+"（"+(photos?.length||0)+"）"}>
-     {(photos&&photos.length>0)&&<div className="grid grid-cols-3 gap-2 mb-2.5">{photos.map((p,i)=><div key={i} className="relative aspect-square rounded-md overflow-hidden" style={{border:`1px solid ${LINE}`}}><img src={p} className="w-full h-full object-cover"/>{perms.photo&&<button onClick={()=>delPhotoIdx(cur.id,i)} className="absolute top-1 right-1 p-0.5 rounded bg-white/90 hover:bg-white"><Svg n="x" s={12}/></button>}</div>)}</div>}
+     {(photos&&photos.length>0)&&<div className="grid grid-cols-3 gap-2 mb-2.5">{photos.map((p,i)=><div key={i} className="relative aspect-square rounded-md overflow-hidden" style={{border:`1px solid ${LINE}`}}><img src={p} onClick={()=>setZoom(i)} className="w-full h-full object-cover cursor-zoom-in"/>{perms.photo&&<button onClick={()=>delPhotoIdx(cur.id,i)} className="absolute top-1 right-1 p-0.5 rounded bg-white/90 hover:bg-white"><Svg n="x" s={12}/></button>}</div>)}</div>}
      {perms.photo&&<div className="flex gap-2">
       <button onClick={()=>openCamera(cur.id)} style={{border:`1px solid ${LINE}`}} className="h-9 px-3 rounded-md text-[12.5px] flex items-center gap-1.5 hover:bg-stone-50"><Svg n="camera" s={14}/>{t("takePhoto")}</button>
       <button onClick={()=>fileRef.current.click()} style={{border:`1px solid ${LINE}`}} className="h-9 px-3 rounded-md text-[12.5px] flex items-center gap-1.5 hover:bg-stone-50"><Svg n="image" s={14}/>{t("addPhotos")}</button>
@@ -396,9 +413,18 @@ function Drawer({cur,photos,edit,setEdit,patch,addPhotoFiles,delPhotoIdx,openCam
      </div>}
     </Section>
     <Section title={t("history")}>{(cur.hist||[]).length===0?<div style={{color:SUB}} className="text-[12px]">{t("noHist")}</div>:
-     <ol className="space-y-2.5">{[...(cur.hist||[])].reverse().map((h,i)=><li key={i} className="flex gap-3 text-[12px]"><span className="tabular-nums shrink-0" style={{color:SUB,minWidth:62}}>{h.d}</span><span className="shrink-0 px-1.5 rounded" style={{background:"#F1EFE9"}}><StT t={h.t}/></span><span style={{color:"#5C594F"}}>{h.x}</span></li>)}</ol>}
+     <ol className="space-y-2.5">{[...(cur.hist||[])].reverse().map((h,i)=><li key={i} className="flex gap-3 text-[12px]"><span className="tabular-nums shrink-0" style={{color:SUB,minWidth:62}}>{h.d}</span><span className="shrink-0 px-1.5 rounded" style={{background:"#F1EFE9"}}><StT t={h.t}/></span><span style={{color:"#5C594F"}}>{h.by?<b style={{fontWeight:600}}>{h.by}</b>:null}{h.by?"：":""}{h.x}</span></li>)}</ol>}
     </Section>
    </div>
+   {zoom!=null&&photos[zoom]&&<div className="fixed inset-0 z-[75] flex items-center justify-center" style={{background:"rgba(0,0,0,.88)"}} onClick={()=>setZoom(null)}>
+     <img src={photos[zoom]} onClick={e=>e.stopPropagation()} style={{maxWidth:"92vw",maxHeight:"86vh",objectFit:"contain"}}/>
+     <button onClick={()=>setZoom(null)} className="absolute top-4 right-4 text-white p-2"><Svg n="x" s={22}/></button>
+     {photos.length>1&&<React.Fragment>
+      <button onClick={e=>{e.stopPropagation();setZoom((zoom-1+photos.length)%photos.length);}} className="absolute left-2 top-1/2 -translate-y-1/2 text-white px-3 py-4 text-[28px] leading-none">‹</button>
+      <button onClick={e=>{e.stopPropagation();setZoom((zoom+1)%photos.length);}} className="absolute right-2 top-1/2 -translate-y-1/2 text-white px-3 py-4 text-[28px] leading-none">›</button>
+      <div className="absolute bottom-5 left-1/2 -translate-x-1/2 text-white/85 text-[12px]">{zoom+1} / {photos.length}</div>
+     </React.Fragment>}
+   </div>}
   </aside>
  </>;
 }
