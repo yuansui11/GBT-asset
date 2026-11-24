@@ -9,6 +9,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.26.4/babel.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500&family=Noto+Sans+Thai:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -66,7 +68,7 @@ const DICT={
  transferDetail:{zh:"划拨详情",en:"Transfer detail",th:"รายละเอียดการโอน"}, asset:{zh:"资产",en:"Asset",th:"ทรัพย์สิน"},
  noTransfer:{zh:"还没有划拨记录。在资产档案里点“划拨”即可产生记录。",en:"No transfers yet. Use ‘Transfer’ in an asset profile.",th:"ยังไม่มีการโอน กด ‘โอน’ ในข้อมูลทรัพย์สิน"},
  disposeDesc:{zh:"已报废、出售、丢失或退回的资产。",en:"Assets scrapped, sold, lost or returned.",th:"ทรัพย์สินที่ยกเลิก ขาย สูญหาย หรือคืน"},
- labelsDesc:{zh:"勾选资产,批量打印黑白标贴(80×50mm)。带二维码的成套 PDF 仍用之前生成的文件。",en:"Select assets to batch-print B&W labels (80×50mm). Use the earlier PDF for QR labels.",th:"เลือกทรัพย์สินเพื่อพิมพ์ฉลากขาวดำ (80×50มม.) ฉลาก QR ใช้ไฟล์ PDF เดิม"},
+ labelsDesc:{zh:"勾选资产，批量打印黑白标贴（80×50mm）。标贴带二维码，手机扫码即可打开资产档案。",en:"Select assets to batch-print B&W labels (80×50mm). Each label has a QR code that opens the asset on a phone.",th:"เลือกทรัพย์สินเพื่อพิมพ์ฉลากขาวดำ (80×50มม.) ฉลากมี QR สแกนด้วยมือถือเพื่อเปิดข้อมูลทรัพย์สิน"},
  selectAll:{zh:"全选本页",en:"Select all",th:"เลือกทั้งหมด"}, unselectAll:{zh:"取消全选",en:"Unselect",th:"ยกเลิกเลือก"}, selected:{zh:"已选",en:"Selected",th:"เลือกแล้ว"}, printSel:{zh:"打印所选",en:"Print selected",th:"พิมพ์ที่เลือก"}, print:{zh:"打印",en:"Print",th:"พิมพ์"}, reprint:{zh:"重新打印",en:"Reprint",th:"พิมพ์ใหม่"}, close:{zh:"关闭",en:"Close",th:"ปิด"},
  required:{zh:"必填",en:"required",th:"จำเป็น"},
  sn:{zh:"序列号",en:"Serial No.",th:"หมายเลขซีเรียล"},
@@ -92,6 +94,17 @@ const DICT={
  sortDefault:{zh:"默认排序（编号）",en:"Default (No.)",th:"ค่าเริ่มต้น (เลข)"}, sortCapD:{zh:"资本化日期 新→旧",en:"Capitalized: newest",th:"วันที่ลงบัญชี ใหม่→เก่า"}, sortCapA:{zh:"资本化日期 旧→新",en:"Capitalized: oldest",th:"วันที่ลงบัญชี เก่า→ใหม่"}, sortValD:{zh:"原值 高→低",en:"Cost: high→low",th:"ราคาทุน สูง→ต่ำ"}, sortValA:{zh:"原值 低→高",en:"Cost: low→high",th:"ราคาทุน ต่ำ→สูง"},
  imp:{zh:"批量导入",en:"Import",th:"นำเข้า"}, impTitle:{zh:"批量导入资产",en:"Import assets",th:"นำเข้าทรัพย์สิน"}, impHint:{zh:"支持 Excel（.xlsx）或 CSV。可直接用 SAP 导出的资产清单，也可下载模板填写。已存在的 SAP 编号会跳过，不会覆盖。",en:"Excel (.xlsx) or CSV. Use the SAP asset export as is, or fill in the template. Existing SAP numbers are skipped, never overwritten.",th:"รองรับ Excel (.xlsx) หรือ CSV ใช้ไฟล์ส่งออกจาก SAP ได้เลย หรือกรอกตามแม่แบบ เลข SAP ที่มีอยู่แล้วจะถูกข้าม"}, impTpl:{zh:"下载模板",en:"Download template",th:"ดาวน์โหลดแม่แบบ"}, impPick:{zh:"选择文件",en:"Choose file",th:"เลือกไฟล์"}, impNew:{zh:"可导入",en:"Ready to import",th:"พร้อมนำเข้า"}, impDup:{zh:"已存在（跳过）",en:"Already exists (skipped)",th:"มีอยู่แล้ว (ข้าม)"}, impBad:{zh:"缺编号或名称（跳过）",en:"Missing No. or name (skipped)",th:"ไม่มีเลขหรือชื่อ (ข้าม)"}, impGo:{zh:"导入",en:"Import",th:"นำเข้า"}, impDone:{zh:"已导入",en:"Imported",th:"นำเข้าแล้ว"}, impFail:{zh:"读取文件失败，请确认是 Excel 或 CSV 文件。",en:"Could not read the file. Use an Excel or CSV file.",th:"อ่านไฟล์ไม่ได้ กรุณาใช้ไฟล์ Excel หรือ CSV"}, impNoCol:{zh:"没有找到“资产 / SAP编号”这一列，请检查表头。",en:"No “资产 / SAP编号” column found. Check the header row.",th:"ไม่พบคอลัมน์ “资产 / SAP编号” กรุณาตรวจหัวตาราง"},
  superAdmin:{zh:"超级管理员",en:"Super admin",th:"ผู้ดูแลสูงสุด"}, subAdmin:{zh:"子管理员",en:"Sub-admin",th:"ผู้ดูแลย่อย"}, permMgmt:{zh:"权限管理",en:"Permissions",th:"จัดการสิทธิ์"}, del:{zh:"删除",en:"Delete",th:"ลบ"},
+ exp:{zh:"导出 Excel",en:"Export Excel",th:"ส่งออก Excel"}, scan:{zh:"扫码",en:"Scan",th:"สแกน"}, scanTitle:{zh:"扫描资产二维码",en:"Scan asset QR code",th:"สแกน QR ทรัพย์สิน"}, scanHint:{zh:"把标贴上的二维码放进取景框",en:"Hold the label’s QR code inside the frame",th:"วาง QR บนฉลากให้อยู่ในกรอบ"},
+ noCamScan:{zh:"打不开摄像头。请允许浏览器使用摄像头（需要用 https 网址打开本页），或在下方输入编号查找。",en:"Camera unavailable. Allow camera access (the page must be opened over https), or type the number below.",th:"เปิดกล้องไม่ได้ อนุญาตให้ใช้กล้อง (ต้องเปิดผ่าน https) หรือพิมพ์เลขด้านล่าง"},
+ typeNo:{zh:"或输入编号",en:"Or type the number",th:"หรือพิมพ์เลข"}, find:{zh:"查找",en:"Find",th:"ค้นหา"}, notFound:{zh:"没有找到这个资产",en:"No asset matches this code",th:"ไม่พบทรัพย์สินนี้"},
+ stock:{zh:"盘点",en:"Stocktake",th:"ตรวจนับ"}, stNew:{zh:"新建盘点",en:"New stocktake",th:"สร้างการตรวจนับ"}, stName:{zh:"盘点名称",en:"Name",th:"ชื่อ"}, stScope:{zh:"盘点范围",en:"Scope",th:"ขอบเขต"},
+ stScopeHint:{zh:"已报废、出售、丢失、退回的资产不计入。",en:"Disposed, sold, lost and returned assets are excluded.",th:"ไม่รวมทรัพย์สินที่ยกเลิก ขาย สูญหาย หรือคืนแล้ว"}, stInScope:{zh:"件资产在范围内",en:"assets in scope",th:"รายการในขอบเขต"}, stStart:{zh:"开始盘点",en:"Start",th:"เริ่มตรวจนับ"},
+ stEmpty:{zh:"还没有盘点任务。点“新建盘点”，按部门或分类圈定范围，然后用手机扫码逐件确认。",en:"No stocktakes yet. Create one, pick a department or category, then scan each asset with a phone.",th:"ยังไม่มีการตรวจนับ สร้างใหม่ เลือกแผนกหรือประเภท แล้วสแกนทีละรายการด้วยมือถือ"},
+ stOpen:{zh:"进行中",en:"In progress",th:"กำลังดำเนินการ"}, stClosed:{zh:"已结束",en:"Closed",th:"ปิดแล้ว"}, stDone:{zh:"已盘",en:"Counted",th:"นับแล้ว"}, stTodo:{zh:"未盘",en:"Not counted",th:"ยังไม่นับ"}, stExtra:{zh:"范围外",en:"Out of scope",th:"นอกขอบเขต"},
+ stExtraHint:{zh:"扫到了、但不在本次盘点范围内的资产，可能放错了部门或位置。",en:"Scanned assets outside this scope. They may be in the wrong department or place.",th:"ทรัพย์สินที่สแกนได้แต่อยู่นอกขอบเขต อาจอยู่ผิดแผนกหรือสถานที่"},
+ stScan:{zh:"扫码盘点",en:"Scan to count",th:"สแกนนับ"}, stUndo:{zh:"撤销",en:"Undo",th:"ย้อนกลับ"}, stClose:{zh:"结束盘点",en:"Close stocktake",th:"ปิดการตรวจนับ"}, stReopen:{zh:"重新打开",en:"Reopen",th:"เปิดอีกครั้ง"}, stBack:{zh:"全部盘点",en:"All stocktakes",th:"การตรวจนับทั้งหมด"},
+ stCloseAsk:{zh:"结束后不能再扫码，未盘的资产会留在“未盘”列表里。确定结束？",en:"Scanning stops once closed. Uncounted assets stay in the list. Close now?",th:"ปิดแล้วจะสแกนไม่ได้ รายการที่ยังไม่นับจะยังอยู่ ปิดเลยไหม?"}, stDelAsk:{zh:"删除后盘点记录无法恢复。确定删除？",en:"This stocktake will be deleted for good. Delete?",th:"ลบแล้วกู้คืนไม่ได้ ลบเลยไหม?"},
+ stOk:{zh:"已盘点",en:"Counted",th:"นับแล้ว"}, stAgain:{zh:"这件已经盘过了",en:"Already counted",th:"นับไปแล้ว"}, stOut:{zh:"不在本次范围，已记入“范围外”",en:"Out of scope, logged",th:"นอกขอบเขต บันทึกแล้ว"}, stBy:{zh:"盘点人",en:"Counted by",th:"ผู้นับ"}, stAt:{zh:"盘点时间",en:"Counted at",th:"เวลาที่นับ"}, stResult:{zh:"盘点结果",en:"Result",th:"ผลการนับ"},
 };
 const STLABEL={"在用":{en:"In use",th:"ใช้งาน"},"闲置":{en:"Idle",th:"ว่าง"},"维修":{en:"Repair",th:"ซ่อม"},"报废":{en:"Scrapped",th:"ยกเลิก"},"已出售":{en:"Sold",th:"ขายแล้ว"},"丢失":{en:"Lost",th:"สูญหาย"},"退回":{en:"Returned",th:"คืน"},"编辑":{en:"Edit",th:"แก้ไข"},"照片":{en:"Photo",th:"รูปภาพ"},"划拨":{en:"Transfer",th:"โอน"},"新增":{en:"Added",th:"เพิ่ม"},"恢复":{en:"Restored",th:"กู้คืน"}}
 const HX={"添加照片":{en:"Photo added",th:"เพิ่มรูปภาพ"},"删除照片":{en:"Photo deleted",th:"ลบรูปภาพ"},"恢复为在用":{en:"Restored to in use",th:"กู้คืนเป็นใช้งาน"},"手动新增资产":{en:"Asset added manually",th:"เพิ่มทรัพย์สินด้วยตนเอง"},"批量导入":{en:"Imported from file",th:"นำเข้าจากไฟล์"},"导入时标记为已报废":{en:"Marked scrapped at import",th:"ระบุว่ายกเลิกตั้งแต่นำเข้า"}};
@@ -125,12 +138,21 @@ function Svg({n,s=16,style,cls}){
   tag:<g><path d="M20 12l-8 8-9-9V3h8z"/><circle cx="7" cy="7" r="1.3"/></g>,
   image:<g><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></g>,
   globe:<g><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></g>,
+  qr:<g><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM21 14v.01M14 21h.01M17 21h4v-4"/></g>,
+  clip:<g><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1"/><path d="M9 13l2 2 4-4.5"/></g>,
+  download:<g><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></g>,
  };
  return <svg {...c}>{P[n]}</svg>;
 }
 
 const fmt = n => (n||0).toLocaleString("en-US",{maximumFractionDigits:0});
 const today = ()=> new Date().toISOString().slice(0,10);
+const nowStr = ()=>{const d=new Date(),p=n=>String(n).padStart(2,"0");return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate())+" "+p(d.getHours())+":"+p(d.getMinutes());};
+/* 二维码内容：线上打开时是带 #a=编号 的网址（手机相机扫码直达档案），本地打开时只放编号 */
+function qrText(id){const h=location.href.split("#")[0];return /^https?:/.test(h)?h+"#a="+encodeURIComponent(id):String(id);}
+/* 从扫到的文字里找资产：网址里的 #a=、SAP 编号，或公贝/旧号/序列号 */
+function findByCode(text,assets,byId){const s=String(text||"").trim();if(!s)return null;const m=/[#&?]a=([^&#\s]+)/.exec(s);const id=m?decodeURIComponent(m[1]):s;if(byId[id])return byId[id];for(const n of (s.match(/\d{6,}/g)||[]))if(byId[n])return byId[n];return assets.find(a=>[a.gb,a.old,a.sn].filter(Boolean).includes(s))||null;}
+function saveXlsx(rows,sheet,file,widths){const ws=XLSX.utils.aoa_to_sheet(rows);if(widths)ws["!cols"]=widths.map(w=>({wch:w}));const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,sheet);XLSX.writeFile(wb,file);}
 const LKEY="amos_lang";
 const CCMAP=[["人力资源","HR"],["财务","AC"],["品控","QC"],["仓储","WH"],["设备","MT"],["化验","LAB"],["计划","计划"],["进出口","MK"],["研发","R&D"],["采购","PU"],["总经理","GM"],["行政","ADM"],["IT","IT"],["灭菌","RC"],["零食泰国1","PD1"],["零食泰国2","PD2"],["零食泰国3","PD3"],["冻干","FD"],["老厂公共","OLD"],["新厂公共","NEW"]];
 function ccToDept(cc){const x=String(cc||"");for(const [k,v] of CCMAP){if(x.includes(k))return v;}return x.replace(/_乖宝泰国/,"").replace(/^泰国/,"").trim();}
@@ -144,7 +166,7 @@ function compressToDataURL(src,cb){const rd=new FileReader();rd.onload=e=>{const
 function buildPalette(depts){const m={};let h=210;depts.forEach(d=>{const[r,g,b]=hsv(((h%360)+360)%360/360,0.62,0.7);m[d]=`rgb(${r},${g},${b})`;h+=137.508});return m;}
 function hsv(h,s,v){let i=Math.floor(h*6),f=h*6-i,p=v*(1-s),q=v*(1-f*s),t=v*(1-(1-f)*s),r,g,b;[[v,t,p],[q,v,p],[p,v,t],[p,q,v],[t,p,v],[v,p,q]][i%6].forEach((x,k)=>{if(k===0)r=x;if(k===1)g=x;if(k===2)b=x});return[Math.round(r*255),Math.round(g*255),Math.round(b*255)];}
 
-const NAVK=[["dash","dash"],["ledger","list"],["transfer","tf"],["dispose","box"],["labels","tag"]];
+const NAVK=[["dash","dash"],["ledger","list"],["stock","clip"],["transfer","tf"],["dispose","box"],["labels","tag"]];
 const LANGS=[["zh","中"],["en","EN"],["th","ไทย"]];
 
 function App(){
@@ -155,9 +177,11 @@ function App(){
  const [sel,setSel]=useState(null); const [edit,setEdit]=useState(false); const [modal,setModal]=useState(null);
  const [photos,setPhotos]=useState({}); const [printA,setPrintA]=useState(null); const [printBatch,setPrintBatch]=useState(null); const [camFor,setCamFor]=useState(null);
  const [cfg,setCfg]=useState(null); const [auth,setAuth]=useState(null); const [permOpen,setPermOpen]=useState(false); const [upN,setUpN]=useState(0);
+ const [stocks,setStocks]=useState([]); const [scanOpen,setScanOpen]=useState(false); const [toast,setToast]=useState(""); const toastTm=useRef();
  useEffect(()=>{localStorage.setItem(LKEY,lang);},[lang]);
  useEffect(()=>{const un=DB.collection("assets").onSnapshot(s=>{const m={};s.forEach(d=>{m[d.id]=d.data();});setDocs(m);setLoaded(true);},e=>{setErr(String(e&&e.message||e));setLoaded(true);});return()=>un();},[]);
  useEffect(()=>{const un=DB.collection("config").doc("main").onSnapshot(d=>{if(d.exists)setCfg(d.data());else{DB.collection("config").doc("main").set(DEFAULT_CFG);setCfg(DEFAULT_CFG);}},()=>setCfg(DEFAULT_CFG));return()=>un();},[]);
+ useEffect(()=>{const un=DB.collection("stocktakes").onSnapshot(s=>{const l=[];s.forEach(d=>l.push({...d.data(),_id:d.id}));l.sort((x,y)=>(y.createdAt||0)-(x.createdAt||0));setStocks(l);},()=>{});return()=>un();},[]);
  useEffect(()=>{if(!cfg)return;try{const u=sessionStorage.getItem("amos_user");const a=(cfg.accounts||[]).find(x=>x.u===u);setAuth(a||null);}catch{}},[cfg]);
  const t=k=>DICT[k]?.[lang]??DICT[k]?.zh??k;
  const sl=s=> lang==="zh"?s:(STLABEL[s]?.[lang]||s);
@@ -183,12 +207,16 @@ function App(){
  function login(u,p){const a=(cfg&&cfg.accounts||[]).find(x=>x.u===(u||"").trim()&&x.p===p);if(a){try{sessionStorage.setItem("amos_user",a.u);}catch{}setAuth(a);return true;}return false;}
  function logout(){try{sessionStorage.removeItem("amos_user");}catch{}setAuth(null);}
  const isSuper=auth&&auth.role==="super";
- const perms=isSuper?{edit:1,add:1,transfer:1,dispose:1,photo:1}:((auth&&auth.perms)||{});
+ const perms=isSuper?{edit:1,add:1,transfer:1,dispose:1,photo:1,stock:1}:{...((auth&&auth.perms)||{}),stock:!(auth&&auth.perms&&auth.perms.stock===false)};
  const who=(auth&&auth.name)||"";
  function saveCfg(next){setCfg(next);DB.collection("config").doc("main").set(next);}
  const hx=x=>{if(lang==="zh"||!x)return x;if(HX[x])return HX[x][lang]||x;let r=String(x);Object.keys(HF).forEach(k=>{r=r.split(k+" ").join(t(HF[k]).replace(" ฿","")+" ");});Object.keys(CATLABEL).forEach(k=>{r=r.split(k).join(CATLABEL[k][lang]||k);});Object.keys(STLABEL).forEach(k=>{if(r===k)r=STLABEL[k][lang]||k;});return r;};
  const dn=n=>{if(lang==="zh"||!n)return n;if(n==="超级管理员")return t("superAdmin");const m=/^子管理员(\d*)$/.exec(n);return m?t("subAdmin")+(m[1]?" "+m[1]:""):n;};
  const ctx={lang,t,sl,cl,nm,PAL,perms,isSuper,hx,dn};
+ function flash(m){setToast(m);clearTimeout(toastTm.current);toastTm.current=setTimeout(()=>setToast(""),3200);}
+ /* 手机相机扫标贴上的二维码 → 打开 …#a=编号 → 登录后直接打开该资产档案 */
+ useEffect(()=>{if(!auth||!loaded)return;const go=()=>{const m=/[#&]a=([^&]+)/.exec(location.hash);if(!m)return;const id=decodeURIComponent(m[1]);try{history.replaceState(null,"",location.pathname+location.search);}catch(e){}if(byId[id])open(id);else flash(t("notFound")+"："+id);};go();window.addEventListener("hashchange",go);return()=>window.removeEventListener("hashchange",go);},[auth,loaded,byId]);
+ function onScanCode(code){const a=findByCode(code,assets,byId);if(!a)return{kind:"err",msg:t("notFound"),code};setScanOpen(false);open(a.id);return{kind:"ok"};}
  if(!auth) return <L.Provider value={ctx}><Login t={t} ready={!!cfg} onLogin={login}/></L.Provider>;
  return <L.Provider value={ctx}>
  <div style={{background:PAPER,color:INK}} className="min-h-screen w-full text-[13px] flex">
@@ -215,6 +243,7 @@ function App(){
    <div className="sm:hidden sticky top-0 z-20 flex items-center justify-between px-4" style={{height:48,background:"#FBFAF7",borderBottom:`1px solid ${LINE}`}}>
     <span style={{letterSpacing:".14em"}} className="text-[14px] font-medium">資産管理</span>
     <div className="flex items-center gap-1">
+     <button onClick={()=>setScanOpen(true)} aria-label={t("scan")} className="h-7 px-2 rounded flex items-center gap-1 text-[11px] mr-1" style={{background:AI,color:"#fff"}}><Svg n="qr" s={14}/>{t("scan")}</button>
      {LANGS.map(([k,lb])=><button key={k} onClick={()=>setLang(k)} style={{background:lang===k?AI:"#fff",color:lang===k?"#fff":"#6E6B62",border:`1px solid ${lang===k?AI:LINE}`}} className="h-6 px-1.5 rounded text-[10.5px] leading-none">{lb}</button>)}
      {isSuper&&<button onClick={()=>setPermOpen(true)} className="h-6 px-2 rounded text-[10.5px]" style={{border:`1px solid ${LINE}`,color:AI}}>{t("permMgmt")}</button>}
      <button onClick={logout} className="h-6 px-2 rounded text-[10.5px]" style={{border:`1px solid ${LINE}`,color:SUB}}>{t("logout")}</button>
@@ -222,7 +251,8 @@ function App(){
    </div>
    <div className="pb-20 sm:pb-0">
     {view==="dash"&&<Dashboard assets={assets} PAL={PAL} onGoto={gotoLedger} onOpen={open}/>}
-    {view==="ledger"&&<Ledger {...{assets,depts,cats,PAL,q,setQ,fDept,setFDept,fStat,setFStat,fCat,setFCat,open,onAdd:()=>setModal("add"),onImport:()=>setModal("import")}}/>}
+    {view==="ledger"&&<Ledger {...{assets,depts,cats,PAL,q,setQ,fDept,setFDept,fStat,setFStat,fCat,setFCat,open,onAdd:()=>setModal("add"),onImport:()=>setModal("import"),onScan:()=>setScanOpen(true)}}/>}
+    {view==="stock"&&<Stocktake {...{assets,byId,stocks,depts,cats,who,open}}/>}
     {view==="transfer"&&<Transfers assets={assets} open={open}/>}
     {view==="dispose"&&<Disposal assets={assets} open={open}/>}
     {view==="labels"&&<Labels assets={assets} depts={depts} onPrintOne={setPrintA} onPrintBatch={setPrintBatch}/>}
@@ -241,6 +271,8 @@ function App(){
   {printBatch&&<BatchPrint list={printBatch} onDone={()=>setPrintBatch(null)}/>}
   {camFor&&<Camera onClose={()=>setCamFor(null)} onCapture={b=>addPhotoBlob(camFor,b)}/>}
   {permOpen&&isSuper&&<PermPanel cfg={cfg} onClose={()=>setPermOpen(false)} onSave={saveCfg}/>}
+  {scanOpen&&<Scanner title={t("scanTitle")} onCode={onScanCode} onClose={()=>setScanOpen(false)}/>}
+  {toast&&<div role="status" className="fixed left-1/2 -translate-x-1/2 bottom-24 sm:bottom-8 z-[95] px-4 py-2.5 rounded-lg text-white text-[13px] shadow-lg" style={{background:"rgba(35,34,30,.92)"}}>{toast}</div>}
  </div>
  </L.Provider>;
 }
@@ -293,16 +325,18 @@ function Dashboard({assets,PAL,onGoto,onOpen}){
 }
 
 /* ---------- 台账 ---------- */
-function Ledger({assets,depts,cats,PAL,q,setQ,fDept,setFDept,fStat,setFStat,fCat,setFCat,open,onAdd,onImport}){
+function Ledger({assets,depts,cats,PAL,q,setQ,fDept,setFDept,fStat,setFStat,fCat,setFCat,open,onAdd,onImport,onScan}){
  const {t,sl,cl,nm,perms}=useL(); const [sort,setSort]=useState("");
  const list=useMemo(()=>{const s=q.trim().toLowerCase();return assets.filter(a=>{if(fDept&&a.dept!==fDept)return false;if(fStat&&a.status!==fStat)return false;if(fCat&&a.cat!==fCat)return false;if(s&&![a.id,a.cn,a.en,a.th,a.sn,a.gb,a.old,a.user,a.location,a.manager].join(" ").toLowerCase().includes(s))return false;return true;});},[assets,q,fDept,fStat,fCat]);
  const sorted=useMemo(()=>{if(!sort)return list;const a=[...list];const capK=x=>x.cap||"";if(sort==="capD")a.sort((x,y)=>(!x.cap)-(!y.cap)||capK(y).localeCompare(capK(x)));else if(sort==="capA")a.sort((x,y)=>(!x.cap)-(!y.cap)||capK(x).localeCompare(capK(y)));else if(sort==="valD")a.sort((x,y)=>(y.val||0)-(x.val||0));else if(sort==="valA")a.sort((x,y)=>(x.val||0)-(y.val||0));return a;},[list,sort]);
  return <div className="max-w-[1080px] mx-auto px-6 lg:px-10 py-8">
   <div className="flex items-end justify-between gap-4 flex-wrap"><H title={t("ledger")} en="Ledger"/>
-   <div className="flex items-center gap-2">
-    <div className="relative"><span className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{color:SUB}}><Svg n="search" s={14}/></span><input value={q} onChange={e=>setQ(e.target.value)} placeholder={t("search")} style={{background:"#fff",border:`1px solid ${LINE}`}} className="pl-8 pr-3 h-9 w-[240px] rounded-md outline-none focus:border-stone-400 text-[12.5px]"/></div>
+   <div className="flex items-center gap-2 flex-wrap">
+    <div className="relative"><span className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{color:SUB}}><Svg n="search" s={14}/></span><input value={q} onChange={e=>setQ(e.target.value)} placeholder={t("search")} style={{background:"#fff",border:`1px solid ${LINE}`}} className="pl-8 pr-3 h-9 w-[240px] max-w-full rounded-md outline-none focus:border-stone-400 text-[12.5px]"/></div>
     {perms.add&&<button onClick={onAdd} style={{background:AI}} className="h-9 px-3.5 rounded-md text-white flex items-center gap-1.5 text-[12.5px] hover:opacity-90"><Svg n="plus" s={15}/>{t("add")}</button>}
     {perms.add&&<button onClick={onImport} style={{border:`1px solid ${LINE}`,background:"#fff"}} className="h-9 px-3 rounded-md flex items-center gap-1.5 text-[12.5px] hover:bg-stone-50">{t("imp")}</button>}
+    <button onClick={()=>exportLedger(sorted,sl)} disabled={!sorted.length} style={{border:`1px solid ${LINE}`,background:"#fff"}} className="h-9 px-3 rounded-md flex items-center gap-1.5 text-[12.5px] hover:bg-stone-50"><Svg n="download" s={14}/>{t("exp")}</button>
+    <button onClick={onScan} style={{border:`1px solid ${LINE}`,background:"#fff"}} className="h-9 px-3 rounded-md hidden sm:flex items-center gap-1.5 text-[12.5px] hover:bg-stone-50"><Svg n="qr" s={14}/>{t("scan")}</button>
    </div>
   </div>
   <div className="flex items-center gap-2 flex-wrap mt-4">
@@ -325,6 +359,10 @@ function Ledger({assets,depts,cats,PAL,q,setQ,fDept,setFDept,fStat,setFStat,fCat
   </div>
  </div>;
 }
+/* 导出：表头与导入模板一致，导出的文件可直接再导入 */
+function exportLedger(list,sl){const head=["SAP编号","中文名称","英文名称","泰文名称","部门","资产分类","资本化日期","原值","净值","公贝编号","旧资产编号","序列号","使用人","管理人","存放位置","备注","状态"];
+ const rows=list.map(a=>[a.id,a.cn||"",a.en||"",a.th||"",a.dept||"",a.cat||"",a.cap||"",Number(a.val)||0,Number(a.net)||0,a.gb||"",a.old||"",a.sn||"",a.user||"",a.manager||"",a.location||"",a.note||"",a.status||""]);
+ saveXlsx([head,...rows],"assets","GAMBOL_assets_"+today()+".xlsx",[15,22,24,22,7,12,12,13,13,14,14,16,12,12,18,20,8]);}
 function Sub({a}){const {lang}=useL();const second= lang==="zh"?(a.en||a.th):a.cn; return second?<div style={{color:SUB}} className="truncate text-[11px]">{second}</div>:null;}
 
 /* ---------- 划拨记录 ---------- */
@@ -500,14 +538,23 @@ function DisposeModal({onClose,onSave}){const{t,sl}=useL();const[f,setF]=useStat
   <div className="flex justify-end gap-2 mt-1"><button onClick={onClose} style={{border:`1px solid ${LINE}`}} className="h-9 px-4 rounded-md text-[13px]">{t("cancel")}</button><button onClick={()=>onSave(f)} style={{background:"#B04A3F"}} className="h-9 px-4 rounded-md text-white text-[13px]">{t("confirm")}</button></div></Shell>;}
 
 /* ---------- 打印 ---------- */
+/* 二维码（qrcode-generator 生成，画成 SVG，打印清晰） */
+function QR({text,size}){const m=useMemo(()=>{try{if(!window.qrcode)return null;const q=window.qrcode(0,"M");q.addData(String(text));q.make();return q;}catch(e){return null;}},[text]);if(!m)return null;const n=m.getModuleCount();let d="";for(let r=0;r<n;r++)for(let c=0;c<n;c++)if(m.isDark(r,c))d+="M"+c+" "+r+"h1v1h-1z";return <svg viewBox={`-1 -1 ${n+2} ${n+2}`} style={{width:size,height:size,display:"block"}} shapeRendering="crispEdges"><rect x="-1" y="-1" width={n+2} height={n+2} fill="#fff"/><path d={d} fill="#000"/></svg>;}
 function LabelBox({a}){return <div style={{background:"#fff",width:"80mm",height:"50mm",border:"1px solid #000",padding:"3mm",fontFamily:"sans-serif",color:"#000",display:"flex",flexDirection:"column",boxSizing:"border-box"}}>
  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",borderBottom:"1.5px solid #000",paddingBottom:"1.2mm"}}><b style={{fontSize:"3.4mm",letterSpacing:".3mm"}}>SAP 资产标贴</b><span style={{fontSize:"2.4mm"}}>GAMBOL (THAILAND)</span></div>
- <div style={{fontSize:"3.4mm",fontWeight:600,marginTop:"1.4mm"}}>{a.cn}</div><div style={{fontSize:"2.4mm",color:"#333"}}>{[a.en,a.th].filter(Boolean).join(" / ")}</div>
- <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0.5mm 3mm",marginTop:"1.4mm",fontSize:"2.7mm"}}>
-  <div><span style={{color:"#555"}}>SAP：</span>{a.id}</div><div><span style={{color:"#555"}}>公贝：</span>{a.gb||"—"}</div>
-  <div><span style={{color:"#555"}}>旧号：</span>{a.old||"—"}</div><div><span style={{color:"#555"}}>部门：</span>{a.dept}</div>
-  <div><span style={{color:"#555"}}>资本化：</span>{a.cap||"—"}</div><div><span style={{color:"#555"}}>原值฿：</span>{fmt(a.val)}</div></div>
- <div style={{marginTop:"auto",display:"flex",justifyContent:"space-between",alignItems:"flex-end",fontSize:"2.2mm",color:"#555"}}><span>使用人：{a.user||"____"}　位置：{a.location||"____"}</span><span>{a.dept}</span></div>
+ <div style={{display:"flex",gap:"2.5mm",marginTop:"1.4mm",flex:1,minHeight:0}}>
+  <div style={{flex:1,minWidth:0,display:"flex",flexDirection:"column"}}>
+   <div style={{fontSize:"3.4mm",fontWeight:600,lineHeight:1.2}}>{a.cn}</div><div style={{fontSize:"2.3mm",color:"#333",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{[a.en,a.th].filter(Boolean).join(" / ")}</div>
+   <div style={{display:"grid",gridTemplateColumns:"auto 1fr",gap:"0.3mm 1.5mm",marginTop:"1.2mm",fontSize:"2.5mm",lineHeight:1.25}}>
+    <span style={{color:"#555"}}>SAP</span><b>{a.id}</b>
+    <span style={{color:"#555"}}>公贝 / 旧号</span><span>{a.gb||"—"} / {a.old||"—"}</span>
+    <span style={{color:"#555"}}>部门</span><span>{a.dept}</span>
+    <span style={{color:"#555"}}>资本化</span><span>{a.cap||"—"}</span>
+    <span style={{color:"#555"}}>原值 ฿</span><span>{fmt(a.val)}</span></div>
+  </div>
+  <div style={{width:"21mm",flexShrink:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:"0.6mm"}}><QR text={qrText(a.id)} size="21mm"/><span style={{fontSize:"1.9mm",color:"#555"}}>扫码查看 · Scan</span></div>
+ </div>
+ <div style={{marginTop:"1mm",fontSize:"2.2mm",color:"#555",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>使用人：{a.user||"____"}　位置：{a.location||"____"}</div>
 </div>;}
 function PrintLabel({a,onDone}){const{t}=useL();useEffect(()=>{const tm=setTimeout(()=>window.print(),150);const h=()=>onDone();window.addEventListener("afterprint",h);return()=>{clearTimeout(tm);window.removeEventListener("afterprint",h);};},[]);
  return <div className="fixed inset-0 z-[60] flex items-center justify-center p-6 print-wrap" style={{background:"rgba(35,34,30,.4)"}} onClick={onDone}>
@@ -539,6 +586,150 @@ function Camera({onClose,onCapture}){
      :<button onClick={snap} title={t("capture")} style={{background:"#fff",border:"3px solid #888"}} className="h-12 w-12 rounded-full"/>)}
    </div>
   </div>
+ </div>;
+}
+
+/* ---------- 扫码 ---------- */
+/* 优先用浏览器自带的 BarcodeDetector（安卓 Chrome），没有就用 jsQR 逐帧识别（iPhone Safari 等） */
+function Scanner({title,onCode,onClose,footer}){
+ const {t}=useL(); const vid=useRef(); const cv=useRef(null); const stream=useRef(); const det=useRef(null); const last=useRef({c:"",at:0}); const cb=useRef(onCode); cb.current=onCode;
+ const [err,setErr]=useState(false); const [fb,setFb]=useState(null); const [typed,setTyped]=useState("");
+ function show(r){if(!r)return;setFb({...r,at:Date.now()});try{navigator.vibrate&&navigator.vibrate(r.kind==="ok"?60:[40,60,40]);}catch(e){}}
+ /* 同一张标贴一直在镜头里时只算一次；移开约 2.5 秒后再扫才会再次处理 */
+ function handle(code){const now=Date.now();if(code===last.current.c&&now-last.current.at<2500){last.current.at=now;return;}last.current={c:code,at:now};show(cb.current(code));}
+ useEffect(()=>{let stop=false,timer;
+  async function loop(){if(stop)return;const v=vid.current;if(v&&v.readyState>=2&&v.videoWidth){try{let code=null;
+   if(det.current){const r=await det.current.detect(v);if(r&&r[0])code=r[0].rawValue;}
+   else if(window.jsQR){const sc=Math.min(1,720/Math.max(v.videoWidth,v.videoHeight));const w=Math.round(v.videoWidth*sc),h=Math.round(v.videoHeight*sc);if(!cv.current)cv.current=document.createElement("canvas");const c=cv.current;c.width=w;c.height=h;const x=c.getContext("2d",{willReadFrequently:true});x.drawImage(v,0,0,w,h);const d=x.getImageData(0,0,w,h);const r=window.jsQR(d.data,w,h,{inversionAttempts:"dontInvert"});if(r&&r.data)code=r.data;}
+   if(code)handle(code);}catch(e){}}timer=setTimeout(loop,180);}
+  (async()=>{try{
+   if("BarcodeDetector" in window){try{const f=await window.BarcodeDetector.getSupportedFormats();if(f.includes("qr_code"))det.current=new window.BarcodeDetector({formats:["qr_code"]});}catch(e){}}
+   const st=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment",width:{ideal:1280},height:{ideal:720}},audio:false});
+   if(stop){st.getTracks().forEach(x=>x.stop());return;}stream.current=st;const v=vid.current;v.srcObject=st;await v.play();loop();
+  }catch(e){setErr(true);}})();
+  return()=>{stop=true;clearTimeout(timer);if(stream.current)stream.current.getTracks().forEach(x=>x.stop());};
+ },[]);
+ const col={ok:"#3E7050",warn:"#94701F",err:"#B04A3F"};
+ return <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center sm:p-4" style={{background:"rgba(0,0,0,.78)"}}>
+  <div style={{background:"#fff"}} className="w-full sm:max-w-[460px] rounded-t-2xl sm:rounded-2xl overflow-hidden">
+   <div className="px-4 py-3 flex items-center justify-between" style={{borderBottom:`1px solid ${LINE}`}}><span className="text-[14px] font-medium">{title}</span><button onClick={onClose} aria-label={t("close")} className="p-1 rounded hover:bg-stone-100"><Svg n="x" s={18}/></button></div>
+   <div className="relative bg-black" style={{aspectRatio:"1/1",maxHeight:"58vh",width:"100%"}}>
+    {err?<div className="absolute inset-0 flex items-center justify-center text-white/85 text-[13px] p-6 text-center leading-relaxed">{t("noCamScan")}</div>
+     :<><video ref={vid} playsInline muted className="absolute inset-0 w-full h-full object-cover"/>
+       <div className="absolute pointer-events-none" style={{left:"18%",top:"18%",right:"18%",bottom:"18%",border:"2px solid rgba(255,255,255,.9)",borderRadius:14,boxShadow:"0 0 0 999px rgba(0,0,0,.28)"}}/>
+       <div className="absolute left-0 right-0 top-3 text-center text-white/90 text-[12px]">{t("scanHint")}</div></>}
+    {fb&&<div key={fb.at} className="absolute left-3 right-3 bottom-3 rounded-lg px-3 py-2.5 text-white text-[13px] flex items-center gap-2" style={{background:col[fb.kind]}}>
+     <Svg n={fb.kind==="ok"?"check":(fb.kind==="err"?"x":"qr")} s={16}/><span className="min-w-0 flex-1"><b className="font-medium block truncate">{fb.name||fb.code||""}</b><span className="opacity-90">{fb.msg}</span></span></div>}
+   </div>
+   <form className="flex gap-2 px-4 pt-3" onSubmit={e=>{e.preventDefault();const v=typed.trim();if(!v)return;show(cb.current(v));setTyped("");}}>
+    <input value={typed} onChange={e=>setTyped(e.target.value)} placeholder={t("typeNo")} inputMode="numeric" style={inp} className={I}/>
+    <button type="submit" style={{border:`1px solid ${LINE}`}} className="h-9 px-4 rounded-md text-[13px] shrink-0">{t("find")}</button>
+   </form>
+   <div className="px-4 py-3 flex items-center justify-between gap-3"><div className="text-[12.5px] min-w-0" style={{color:"#5C594F"}}>{footer}</div><button onClick={onClose} style={{background:AI}} className="h-9 px-5 rounded-md text-white text-[13px] shrink-0">{t("close")}</button></div>
+  </div>
+ </div>;
+}
+
+/* ---------- 盘点 ---------- */
+/* stocktakes/{id}: {name, dept, cat, ids:[范围内资产编号], items:{编号:{at,by}}, extra:{范围外编号:{at,by}}, status:"open"|"closed", created, createdAt, by} */
+function stProg(st){const items=st.items||{};const ids=st.ids||[];const done=ids.filter(id=>items[id]).length;return{done,total:ids.length,pct:ids.length?Math.round(done/ids.length*100):0};}
+function StBadge({st}){const{t}=useL();const o=st.status==="open";return <span className="inline-block px-2 py-[3px] rounded text-[11px] leading-none" style={{color:o?"#2F4A6B":"#6B6F7A",background:o?"#E7EDF4":"#EEEFF1"}}>{o?t("stOpen"):t("stClosed")}</span>;}
+function Bar({pct}){return <span className="block h-[7px] rounded-full overflow-hidden" style={{background:"#EFEDE7"}}><span style={{width:pct+"%",background:pct>=100?"#4B7A5A":AI,display:"block",height:"100%"}}/></span>;}
+function Stocktake({assets,byId,stocks,depts,cats,who,open}){
+ const {t,cl,dn,perms}=useL(); const [curId,setCurId]=useState(null); const [creating,setCreating]=useState(false);
+ const cur=stocks.find(s=>s._id===curId);
+ if(cur) return <StockDetail st={cur} {...{assets,byId,who,open}} onBack={()=>setCurId(null)}/>;
+ const scope=st=>[st.dept||t("allDept"),st.cat?cl(st.cat):t("allCat")].join(" · ");
+ return <div className="max-w-[1080px] mx-auto px-6 lg:px-10 py-8">
+  <div className="flex items-end justify-between gap-4 flex-wrap"><H title={t("stock")} en="Stocktake"/>
+   {perms.stock&&<button onClick={()=>setCreating(true)} style={{background:AI}} className="h-9 px-3.5 rounded-md text-white flex items-center gap-1.5 text-[12.5px] hover:opacity-90"><Svg n="plus" s={15}/>{t("stNew")}</button>}</div>
+  {stocks.length===0?<div style={{background:"#fff",border:`1px solid ${LINE}`,color:SUB}} className="rounded-lg mt-5 px-6 py-14 text-center text-[13px] leading-relaxed"><div className="flex justify-center mb-3" style={{color:"#B8B5AC"}}><Svg n="clip" s={28}/></div>{t("stEmpty")}</div>
+  :<div className="grid sm:grid-cols-2 gap-3 mt-5">{stocks.map(st=>{const p=stProg(st);return <button key={st._id} onClick={()=>setCurId(st._id)} style={{background:"#fff",border:`1px solid ${LINE}`}} className="rounded-lg p-4 text-left hover:border-stone-300">
+    <div className="flex items-start justify-between gap-2"><span className="text-[14px] font-medium leading-snug">{st.name}</span><StBadge st={st}/></div>
+    <div style={{color:SUB}} className="text-[11.5px] mt-1">{scope(st)} · {st.created}{st.by?" · "+dn(st.by):""}</div>
+    <div className="flex items-baseline gap-2 mt-3"><span className="text-[22px] font-medium tabular-nums leading-none">{p.done}</span><span style={{color:SUB}} className="text-[12px] tabular-nums">/ {p.total} · {p.pct}%</span>{Object.keys(st.extra||{}).length>0&&<span className="ml-auto text-[11.5px]" style={{color:"#94701F"}}>{t("stExtra")} {Object.keys(st.extra||{}).length}</span>}</div>
+    <div className="mt-2"><Bar pct={p.pct}/></div>
+   </button>;})}</div>}
+  {creating&&<NewStock {...{assets,depts,cats,who}} onClose={()=>setCreating(false)} onCreated={id=>{setCreating(false);setCurId(id);}}/>}
+ </div>;
+}
+function NewStock({assets,depts,cats,who,onClose,onCreated}){
+ const {t,cl}=useL(); const [f,setF]=useState({name:today().slice(0,7)+" 盘点",dept:"",cat:""}); const [busy,setBusy]=useState(false); const set=(k,v)=>setF(p=>({...p,[k]:v}));
+ const ids=useMemo(()=>assets.filter(a=>!DISPOSE.includes(a.status)&&(!f.dept||a.dept===f.dept)&&(!f.cat||a.cat===f.cat)).map(a=>String(a.id)),[assets,f.dept,f.cat]);
+ async function go(){setBusy(true);try{const r=await DB.collection("stocktakes").add({name:f.name.trim()||today()+" 盘点",dept:f.dept,cat:f.cat,ids,items:{},extra:{},status:"open",created:today(),createdAt:Date.now(),by:who});onCreated(r.id);}catch(e){setBusy(false);}}
+ return <Shell title={t("stNew")} onClose={onClose}>
+  <Row label={t("stName")}><input value={f.name} onChange={e=>set("name",e.target.value)} style={inp} className={I}/></Row>
+  <div className="grid grid-cols-2 gap-x-3">
+   <Row label={t("dept")}><select value={f.dept} onChange={e=>set("dept",e.target.value)} style={inp} className={I}><option value="">{t("allDept")}</option>{depts.map(d=><option key={d} value={d}>{d}</option>)}</select></Row>
+   <Row label={t("cat")}><select value={f.cat} onChange={e=>set("cat",e.target.value)} style={inp} className={I}><option value="">{t("allCat")}</option>{cats.map(c=><option key={c} value={c}>{cl(c)}</option>)}</select></Row>
+  </div>
+  <div className="rounded-md px-3 py-2.5 text-[12.5px]" style={{background:"#F6F5F0"}}><b className="tabular-nums text-[15px] font-medium">{ids.length}</b> {t("stInScope")}<div style={{color:SUB}} className="text-[11.5px] mt-0.5">{t("stScopeHint")}</div></div>
+  <div className="flex justify-end gap-2 mt-4"><button onClick={onClose} style={{border:`1px solid ${LINE}`}} className="h-9 px-4 rounded-md text-[13px]">{t("cancel")}</button><button disabled={busy||!ids.length} onClick={go} style={{background:busy||!ids.length?"#C9C6BE":AI}} className="h-9 px-4 rounded-md text-white text-[13px]">{busy?t("saving"):t("stStart")}</button></div>
+ </Shell>;
+}
+function StockDetail({st,assets,byId,who,open,onBack}){
+ const {t,nm,cl,dn,perms,isSuper}=useL();
+ const ref=DB.collection("stocktakes").doc(st._id); const FP=firebase.firestore.FieldPath, FV=firebase.firestore.FieldValue;
+ const items=st.items||{}, extra=st.extra||{}, ids=st.ids||[]; const idSet=useMemo(()=>new Set(ids),[st.ids]);
+ const isOpen=st.status==="open", canAct=perms.stock&&isOpen;
+ const [tab,setTab]=useState("todo"); const [q,setQ]=useState(""); const [scan,setScan]=useState(false); const [ask,setAsk]=useState(null);
+ const pend=useRef(new Set()); // 已写入但快照还没回来的，防止连续扫同一件重复记录
+ const p=stProg(st);
+ function mark(id){pend.current.add(id);ref.update(new FP("items",id),{at:nowStr(),by:who});}
+ function undo(id){pend.current.delete(id);ref.update(new FP("items",id),FV.delete());}
+ function onCode(code){const a=findByCode(code,assets,byId);if(!a)return{kind:"err",msg:t("notFound"),code};const id=String(a.id);
+  if(idSet.has(id)){if(items[id]||pend.current.has(id))return{kind:"warn",msg:t("stAgain"),name:nm(a)};mark(id);return{kind:"ok",msg:t("stOk"),name:nm(a)};}
+  if(!extra[id]&&!pend.current.has("x"+id)){pend.current.add("x"+id);ref.update(new FP("extra",id),{at:nowStr(),by:who});}
+  return{kind:"warn",msg:t("stOut"),name:nm(a)};}
+ const lists=useMemo(()=>{const s=q.trim().toLowerCase();const hit=a=>!s||[a.id,a.cn,a.en,a.th,a.user,a.location,a.dept].join(" ").toLowerCase().includes(s);
+  const todo=ids.filter(id=>!items[id]).map(id=>byId[id]).filter(Boolean).filter(hit);
+  const done=ids.filter(id=>items[id]).map(id=>byId[id]).filter(Boolean).filter(hit).sort((x,y)=>(items[y.id].at||"").localeCompare(items[x.id].at||""));
+  const ext=Object.keys(extra).map(id=>byId[id]).filter(Boolean).filter(hit);return{todo,done,extra:ext};},[st,byId,q]);
+ function exportSt(){const head=["SAP编号","名称","部门","资产分类","使用人","存放位置","状态","盘点结果","盘点时间","盘点人"];
+  const row=(a,res,m)=>[a.id,a.cn||a.en||"",a.dept||"",a.cat||"",a.user||"",a.location||"",a.status||"",res,m?m.at:"",m?m.by:""];
+  const rows=[...ids.map(id=>byId[id]).filter(Boolean).map(a=>row(a,items[a.id]?"已盘":"未盘",items[a.id])),...Object.keys(extra).map(id=>byId[id]).filter(Boolean).map(a=>row(a,"范围外",extra[a.id]))];
+  saveXlsx([head,...rows],"stocktake","GAMBOL_stocktake_"+st.created+"_"+today()+".xlsx",[15,22,7,12,12,18,8,9,17,12]);}
+ const TABS=[["todo",t("stTodo"),lists.todo.length,ids.length-p.done],["done",t("stDone"),lists.done.length,p.done],["extra",t("stExtra"),lists.extra.length,Object.keys(extra).length]];
+ const rows=lists[tab];
+ return <div className="max-w-[1080px] mx-auto px-6 lg:px-10 py-8">
+  <button onClick={onBack} style={{color:SUB}} className="text-[12px] flex items-center gap-1 hover:underline"><span className="rotate-180 inline-block"><Svg n="chev" s={13}/></span>{t("stBack")}</button>
+  <div className="flex items-start justify-between gap-3 flex-wrap mt-3">
+   <div className="min-w-0"><div className="flex items-center gap-2"><h1 style={{letterSpacing:".04em"}} className="text-[19px] font-medium">{st.name}</h1><StBadge st={st}/></div>
+    <div style={{color:SUB}} className="text-[12px] mt-1">{t("stScope")}：{st.dept||t("allDept")} · {st.cat?cl(st.cat):t("allCat")} · {st.created}{st.by?" · "+dn(st.by):""}</div></div>
+   <div className="flex gap-2 flex-wrap">
+    {canAct&&<button onClick={()=>setScan(true)} style={{background:AI}} className="h-9 px-4 rounded-md text-white flex items-center gap-1.5 text-[13px] hover:opacity-90"><Svg n="qr" s={15}/>{t("stScan")}</button>}
+    <button onClick={exportSt} style={{border:`1px solid ${LINE}`,background:"#fff"}} className="h-9 px-3 rounded-md flex items-center gap-1.5 text-[12.5px] hover:bg-stone-50"><Svg n="download" s={14}/>{t("exp")}</button>
+    {perms.stock&&isOpen&&<button onClick={()=>setAsk("close")} style={{border:`1px solid ${LINE}`,background:"#fff"}} className="h-9 px-3 rounded-md text-[12.5px] hover:bg-stone-50">{t("stClose")}</button>}
+    {isSuper&&!isOpen&&<button onClick={()=>ref.update({status:"open"})} style={{border:`1px solid ${LINE}`,background:"#fff"}} className="h-9 px-3 rounded-md text-[12.5px] hover:bg-stone-50">{t("stReopen")}</button>}
+    {isSuper&&<button onClick={()=>setAsk("del")} style={{border:`1px solid ${LINE}`,background:"#fff",color:"#B04A3F"}} className="h-9 px-3 rounded-md text-[12.5px] hover:bg-stone-50">{t("del")}</button>}
+   </div>
+  </div>
+  {ask&&<div className="mt-3 rounded-lg px-4 py-3 flex items-center gap-3 flex-wrap text-[12.5px]" style={{background:ask==="del"?"#F6E9E7":"#F5EEDF"}}>
+   <span className="flex-1 min-w-[200px]">{ask==="del"?t("stDelAsk"):t("stCloseAsk")}</span>
+   <button onClick={()=>setAsk(null)} style={{border:`1px solid ${LINE}`,background:"#fff"}} className="h-8 px-3 rounded-md">{t("cancel")}</button>
+   <button onClick={()=>{if(ask==="del"){ref.delete();onBack();}else{ref.update({status:"closed",closedAt:nowStr(),closedBy:who});}setAsk(null);}} style={{background:ask==="del"?"#B04A3F":AI}} className="h-8 px-3 rounded-md text-white">{ask==="del"?t("del"):t("stClose")}</button>
+  </div>}
+  <Card className="mt-4"><div className="flex items-baseline gap-2 flex-wrap"><span className="text-[28px] font-medium tabular-nums leading-none">{p.done}</span><span style={{color:SUB}} className="text-[13px] tabular-nums">/ {p.total} {t("stDone")} · {p.pct}%</span>
+   <span className="ml-auto text-[12px] tabular-nums" style={{color:SUB}}>{t("stTodo")} {p.total-p.done}{Object.keys(extra).length?" · "+t("stExtra")+" "+Object.keys(extra).length:""}</span></div>
+   <div className="mt-3"><Bar pct={p.pct}/></div></Card>
+  <div className="flex items-center gap-2 flex-wrap mt-4">
+   <div className="flex rounded-md overflow-hidden" style={{border:`1px solid ${LINE}`}}>{TABS.map(([k,lb,,n])=><button key={k} onClick={()=>setTab(k)} style={{background:tab===k?AI:"#fff",color:tab===k?"#fff":INK}} className="h-8 px-3 text-[12.5px] tabular-nums">{lb} {n}</button>)}</div>
+   <div className="relative ml-auto"><span className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{color:SUB}}><Svg n="search" s={14}/></span><input value={q} onChange={e=>setQ(e.target.value)} placeholder={t("search")} style={{background:"#fff",border:`1px solid ${LINE}`}} className="pl-8 pr-3 h-8 w-[220px] max-w-full rounded-md outline-none focus:border-stone-400 text-[12px]"/></div>
+  </div>
+  {tab==="extra"&&<div style={{color:SUB}} className="text-[12px] mt-2">{t("stExtraHint")}</div>}
+  <div style={{background:"#fff",border:`1px solid ${LINE}`}} className="rounded-lg overflow-hidden mt-3">
+   {rows.length===0&&<div className="px-4 py-12 text-center" style={{color:SUB}}>—</div>}
+   {rows.map(a=>{const m=tab==="done"?items[a.id]:(tab==="extra"?extra[a.id]:null);return <div key={a.id} style={{borderBottom:`1px solid ${LINE}`}} className="px-4 py-2.5 flex items-center gap-3">
+    <button onClick={()=>open(a.id)} className="min-w-0 flex-1 text-left">
+     <div className="flex items-center gap-2"><span className="truncate">{nm(a)}</span><span style={{color:SUB}} className="text-[11px] tabular-nums shrink-0 hidden sm:inline">{a.id}</span></div>
+     <div style={{color:SUB}} className="text-[11px] truncate mt-0.5 flex items-center gap-1.5"><Dept d={a.dept}/>{a.user&&<span className="shrink-0">· {a.user}</span>}{a.location&&<span className="truncate">· {a.location}</span>}</div>
+    </button>
+    {m&&<span style={{color:SUB}} className="text-[11px] text-right shrink-0 leading-tight tabular-nums">{m.at}<br/>{dn(m.by)}</span>}
+    {tab==="todo"&&canAct&&<button onClick={()=>mark(String(a.id))} style={{border:`1px solid ${LINE}`}} className="h-8 px-3 rounded-md text-[12px] flex items-center gap-1 shrink-0 hover:bg-stone-50"><Svg n="check" s={13}/>{t("confirm")}</button>}
+    {tab==="done"&&canAct&&<button onClick={()=>undo(String(a.id))} style={{color:SUB}} className="h-8 px-2 text-[12px] underline underline-offset-2 shrink-0">{t("stUndo")}</button>}
+   </div>;})}
+  </div>
+  {scan&&<Scanner title={t("stScan")+" · "+st.name} onCode={onCode} onClose={()=>setScan(false)} footer={<span className="tabular-nums"><b className="font-medium">{p.done}</b> / {p.total} {t("stDone")}</span>}/>}
  </div>;
 }
 
@@ -585,7 +776,7 @@ function Login({t,ready,onLogin}){
 function PermPanel({cfg,onClose,onSave}){
  const {t}=useL();
  const [list,setList]=useState(()=>JSON.parse(JSON.stringify(cfg.accounts||[])));
- const pk=[["edit",t("aEdit")],["add",t("add")],["transfer",t("aTransfer")],["dispose",t("aDispose")],["photo",t("photos")]];
+ const pk=[["edit",t("aEdit")],["add",t("add")],["transfer",t("aTransfer")],["dispose",t("aDispose")],["photo",t("photos")],["stock",t("stock")]];
  const upd=(i,f)=>setList(l=>l.map((a,j)=>j===i?{...a,...f}:a));
  const updP=(i,k,v)=>setList(l=>l.map((a,j)=>j===i?{...a,perms:{...a.perms,[k]:v}}:a));
  const addSub=()=>setList(l=>[...l,{u:"user"+(l.length+1),p:"Pass@2026",role:"sub",name:"子管理员"+l.length,perms:{edit:true,add:true,transfer:true,dispose:true,photo:true}}]);
@@ -603,7 +794,7 @@ function PermPanel({cfg,onClose,onSave}){
        <label style={{color:SUB}} className="text-[11px] flex items-center gap-1">{t("password")}<input value={a.p} onChange={e=>upd(i,{p:e.target.value})} style={{border:`1px solid ${LINE}`}} className="rounded px-2 h-7 text-[12px] w-28 outline-none"/></label>
      </div>
      {a.role!=="super"&&<div className="flex flex-wrap gap-3 mt-2">
-       {pk.map(([k,lb])=><label key={k} className="flex items-center gap-1 text-[12px]"><input type="checkbox" checked={!!(a.perms&&a.perms[k])} onChange={e=>updP(i,k,e.target.checked)}/>{lb}</label>)}
+       {pk.map(([k,lb])=><label key={k} className="flex items-center gap-1 text-[12px]"><input type="checkbox" checked={k==="stock"?!(a.perms&&a.perms.stock===false):!!(a.perms&&a.perms[k])} onChange={e=>updP(i,k,e.target.checked)}/>{lb}</label>)}
      </div>}
    </div>)}
   </div>
