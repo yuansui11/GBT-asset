@@ -1,0 +1,10 @@
+rules_version = '2';
+// Storage 规则：只有名单上的账号能上传、删除照片（第一次发布时控制台会请求读取 Firestore 的权限，点允许）。
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      allow read, write: if request.auth != null
+        && request.auth.uid in firestore.get(/databases/(default)/documents/config/main).data.uids;
+    }
+  }
+}

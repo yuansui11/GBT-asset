@@ -1,0 +1,27 @@
+rules_version = '2';
+// Firestore 规则：只有 config/main 里 uids 名单上的账号能读写数据；
+// 账号和权限配置只有超级管理员能改；logins 只存“账号 → 内部邮箱”，登录前需要读取。
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function cfg() { return get(/databases/$(database)/documents/config/main).data; }
+    function signedIn() { return request.auth != null; }
+    function member() { return signedIn() && request.auth.uid in cfg().uids; }
+    function isSuper() { return signedIn() && request.auth.uid == cfg().superUid; }
+
+    match /logins/{account} {
+      allow read: if true;
+      allow write: if isSuper();
+    }
+    match /config/{doc} {
+      allow read: if member();
+      allow write: if isSuper();
+    }
+    match /users/{uid} {
+      allow read, write: if signedIn() && (request.auth.uid == uid || isSuper());
+    }
+    // 资产、照片、盘点等业务数据
+    match /{coll}/{doc=**} {
+      allow read, write: if member() && !(coll in ['logins', 'config', 'users']);
+    }
+  }
+}
