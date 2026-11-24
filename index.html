@@ -43,6 +43,8 @@ const normU=u=>String(u||"").trim().toLowerCase();
 const okU=u=>/^[a-z0-9._-]{1,32}$/.test(u);
 const emailOf=(u,n)=>u+(n?"."+n:"")+"@"+EMAIL_DOMAIN;
 const CFG=()=>DB.collection("config").doc("main");
+/* 实时订阅：Firestore 的监听一旦报错（比如权限不足）就会永久断开，这里出错后隔几秒自动重新订阅 */
+function live(sub,onErr){let un=null,stop=false,tm=null,n=0;const go=()=>{if(stop)return;un=sub(()=>{n=0;},e=>{onErr&&onErr(e);try{un&&un();}catch(x){}un=null;if(!stop)tm=setTimeout(go,Math.min(30000,3000*(++n)));});};go();return()=>{stop=true;clearTimeout(tm);try{un&&un();}catch(x){}};}
 const LASTU="amos_last_user", REMEMBER="amos_remember";
 function errKey(e){const c=(e&&e.code)||"";if(c==="auth/too-many-requests")return"errTooMany";if(c==="auth/network-request-failed")return"errNet";if(c==="auth/operation-not-allowed"||c==="auth/configuration-not-found")return"errProvider";if(c==="auth/weak-password")return"pwdShort";return"loginErr";}
 /* 用第二个 Firebase 实例建账号，不会把当前登录的超级管理员挤下线；邮箱被占用时自动换下一个编号 */
@@ -134,6 +136,7 @@ const DICT={
  stExtraHint:{zh:"扫到了、但不在本次盘点范围内的资产，可能放错了部门或位置。",en:"Scanned assets outside this scope. They may be in the wrong department or place.",th:"ทรัพย์สินที่สแกนได้แต่อยู่นอกขอบเขต อาจอยู่ผิดแผนกหรือสถานที่"},
  stScan:{zh:"扫码盘点",en:"Scan to count",th:"สแกนนับ"}, stUndo:{zh:"撤销",en:"Undo",th:"ย้อนกลับ"}, stClose:{zh:"结束盘点",en:"Close stocktake",th:"ปิดการตรวจนับ"}, stReopen:{zh:"重新打开",en:"Reopen",th:"เปิดอีกครั้ง"}, stBack:{zh:"全部盘点",en:"All stocktakes",th:"การตรวจนับทั้งหมด"},
  stCloseAsk:{zh:"结束后不能再扫码，未盘的资产会留在“未盘”列表里。确定结束？",en:"Scanning stops once closed. Uncounted assets stay in the list. Close now?",th:"ปิดแล้วจะสแกนไม่ได้ รายการที่ยังไม่นับจะยังอยู่ ปิดเลยไหม?"}, stDelAsk:{zh:"删除后盘点记录无法恢复。确定删除？",en:"This stocktake will be deleted for good. Delete?",th:"ลบแล้วกู้คืนไม่ได้ ลบเลยไหม?"},
+ stErrLoad:{zh:"暂时读不到盘点数据，系统会自动重试。如果一直这样，请刷新页面或联系超级管理员。",en:"Can’t load stocktakes right now. Retrying automatically. If this persists, refresh the page or contact the super admin.",th:"โหลดข้อมูลตรวจนับไม่ได้ กำลังลองใหม่อัตโนมัติ หากยังเป็นอยู่ให้รีเฟรชหรือติดต่อผู้ดูแล"},
  stOk:{zh:"已盘点",en:"Counted",th:"นับแล้ว"}, stAgain:{zh:"这件已经盘过了",en:"Already counted",th:"นับไปแล้ว"}, stOut:{zh:"不在本次范围，已记入“范围外”",en:"Out of scope, logged",th:"นอกขอบเขต บันทึกแล้ว"}, stBy:{zh:"盘点人",en:"Counted by",th:"ผู้นับ"}, stAt:{zh:"盘点时间",en:"Counted at",th:"เวลาที่นับ"}, stResult:{zh:"盘点结果",en:"Result",th:"ผลการนับ"},
 };
 const STLABEL={"在用":{en:"In use",th:"ใช้งาน"},"闲置":{en:"Idle",th:"ว่าง"},"维修":{en:"Repair",th:"ซ่อม"},"报废":{en:"Scrapped",th:"ยกเลิก"},"已出售":{en:"Sold",th:"ขายแล้ว"},"丢失":{en:"Lost",th:"สูญหาย"},"退回":{en:"Returned",th:"คืน"},"编辑":{en:"Edit",th:"แก้ไข"},"照片":{en:"Photo",th:"รูปภาพ"},"划拨":{en:"Transfer",th:"โอน"},"新增":{en:"Added",th:"เพิ่ม"},"恢复":{en:"Restored",th:"กู้คืน"}}
@@ -205,13 +208,13 @@ function App(){
  const [photos,setPhotos]=useState({}); const [printA,setPrintA]=useState(null); const [printBatch,setPrintBatch]=useState(null); const [camFor,setCamFor]=useState(null);
  const [cfg,setCfg]=useState(null); const [auth,setAuth]=useState(null); const [permOpen,setPermOpen]=useState(false); const [upN,setUpN]=useState(0);
  const [stocks,setStocks]=useState([]); const [scanOpen,setScanOpen]=useState(false); const [toast,setToast]=useState(""); const toastTm=useRef();
- const [user,setUser]=useState(undefined); const [prof,setProf]=useState(null); const [loginBusy,setLoginBusy]=useState(false); const [pwdOpen,setPwdOpen]=useState(false); const [acctMenu,setAcctMenu]=useState(false); const migRef=useRef(false);
+ const [stErr,setStErr]=useState(""); const [user,setUser]=useState(undefined); const [prof,setProf]=useState(null); const [loginBusy,setLoginBusy]=useState(false); const [pwdOpen,setPwdOpen]=useState(false); const [acctMenu,setAcctMenu]=useState(false); const migRef=useRef(false);
  useEffect(()=>AUTH.onAuthStateChanged(u=>setUser(u||null)),[]);
  useEffect(()=>{localStorage.setItem(LKEY,lang);},[lang]);
- useEffect(()=>{if(!user){setDocs({});setLoaded(false);return;}setErr("");const un=DB.collection("assets").onSnapshot(s=>{const m={};s.forEach(d=>{m[d.id]=d.data();});setDocs(m);setLoaded(true);setErr("");},e=>{setErr(String(e&&e.message||e));setLoaded(true);});return()=>un();},[user]);
- useEffect(()=>{if(!user){setCfg(null);return;}const un=CFG().onSnapshot(d=>setCfg(d.exists?d.data():{accounts:[]}),()=>setCfg({accounts:[],denied:true}));return()=>un();},[user]);
- useEffect(()=>{if(!user){setProf(null);return;}const un=DB.collection("users").doc(user.uid).onSnapshot(d=>setProf(d.exists?d.data():{}),()=>setProf({}));return()=>un();},[user]);
- useEffect(()=>{if(!user){setStocks([]);return;}const un=DB.collection("stocktakes").onSnapshot(s=>{const l=[];s.forEach(d=>l.push({...d.data(),_id:d.id}));l.sort((x,y)=>(y.createdAt||0)-(x.createdAt||0));setStocks(l);},()=>{});return()=>un();},[user]);
+ useEffect(()=>{if(!user){setDocs({});setLoaded(false);return;}setErr("");return live((ok,bad)=>DB.collection("assets").onSnapshot(s=>{ok();const m={};s.forEach(d=>{m[d.id]=d.data();});setDocs(m);setLoaded(true);setErr("");},bad),e=>{setErr(String(e&&e.message||e));setLoaded(true);});},[user]);
+ useEffect(()=>{if(!user){setCfg(null);return;}return live((ok,bad)=>CFG().onSnapshot(d=>{ok();setCfg(d.exists?d.data():{accounts:[]});},bad),()=>setCfg(c=>c&&!c.denied?c:{accounts:[],denied:true}));},[user]);
+ useEffect(()=>{if(!user){setProf(null);return;}return live((ok,bad)=>DB.collection("users").doc(user.uid).onSnapshot(d=>{ok();setProf(d.exists?d.data():{});},bad),()=>setProf(p=>p||{}));},[user]);
+ useEffect(()=>{if(!user){setStocks([]);setStErr("");return;}return live((ok,bad)=>DB.collection("stocktakes").onSnapshot(s=>{ok();setStErr("");const l=[];s.forEach(d=>l.push({...d.data(),_id:d.id}));l.sort((x,y)=>(y.createdAt||0)-(x.createdAt||0));setStocks(l);},bad),e=>setStErr(String((e&&(e.code||e.message))||e)));},[user]);
  useEffect(()=>{if(!cfg||!user){setAuth(null);return;}setAuth((cfg.accounts||[]).find(x=>x.uid===user.uid)||null);},[cfg,user]);
  const t=k=>DICT[k]?.[lang]??DICT[k]?.zh??k;
  const sl=s=> lang==="zh"?s:(STLABEL[s]?.[lang]||s);
@@ -315,7 +318,7 @@ function App(){
    <div className="pb-20 sm:pb-0">
     {view==="dash"&&<Dashboard assets={assets} PAL={PAL} onGoto={gotoLedger} onOpen={open}/>}
     {view==="ledger"&&<Ledger {...{assets,depts,cats,PAL,q,setQ,fDept,setFDept,fStat,setFStat,fCat,setFCat,open,onAdd:()=>setModal("add"),onImport:()=>setModal("import"),onScan:()=>setScanOpen(true)}}/>}
-    {view==="stock"&&<Stocktake {...{assets,byId,stocks,depts,cats,who,open}}/>}
+    {view==="stock"&&<Stocktake {...{assets,byId,stocks,stErr,depts,cats,who,open}}/>}
     {view==="transfer"&&<Transfers assets={assets} open={open}/>}
     {view==="dispose"&&<Disposal assets={assets} open={open}/>}
     {view==="labels"&&<Labels assets={assets} depts={depts} onPrintOne={setPrintA} onPrintBatch={setPrintBatch}/>}
@@ -699,14 +702,16 @@ function Scanner({title,onCode,onClose,footer}){
 function stProg(st){const items=st.items||{};const ids=st.ids||[];const done=ids.filter(id=>items[id]).length;return{done,total:ids.length,pct:ids.length?Math.round(done/ids.length*100):0};}
 function StBadge({st}){const{t}=useL();const o=st.status==="open";return <span className="inline-block px-2 py-[3px] rounded text-[11px] leading-none" style={{color:o?"#2F4A6B":"#6B6F7A",background:o?"#E7EDF4":"#EEEFF1"}}>{o?t("stOpen"):t("stClosed")}</span>;}
 function Bar({pct}){return <span className="block h-[7px] rounded-full overflow-hidden" style={{background:"#EFEDE7"}}><span style={{width:pct+"%",background:pct>=100?"#4B7A5A":AI,display:"block",height:"100%"}}/></span>;}
-function Stocktake({assets,byId,stocks,depts,cats,who,open}){
+function Stocktake({assets,byId,stocks,stErr,depts,cats,who,open}){
  const {t,cl,dn,perms}=useL(); const [curId,setCurId]=useState(null); const [creating,setCreating]=useState(false);
  const cur=stocks.find(s=>s._id===curId);
  if(cur) return <StockDetail st={cur} {...{assets,byId,who,open}} onBack={()=>setCurId(null)}/>;
+ if(curId&&!stErr) return <div className="max-w-[1080px] mx-auto px-6 lg:px-10 py-16 text-center text-[13px]" style={{color:SUB}}>{t("loading")}</div>;
  const scope=st=>[st.dept||t("allDept"),st.cat?cl(st.cat):t("allCat")].join(" · ");
  return <div className="max-w-[1080px] mx-auto px-6 lg:px-10 py-8">
   <div className="flex items-end justify-between gap-4 flex-wrap"><H title={t("stock")} en="Stocktake"/>
    {perms.stock&&<button onClick={()=>setCreating(true)} style={{background:AI}} className="h-9 px-3.5 rounded-md text-white flex items-center gap-1.5 text-[12.5px] hover:opacity-90"><Svg n="plus" s={15}/>{t("stNew")}</button>}</div>
+  {stErr&&<div role="alert" className="mt-4 rounded-lg px-4 py-3 text-[12.5px]" style={{background:"#F6E9E7",color:"#8E3A31"}}>{t("stErrLoad")}<span className="opacity-70">（{stErr}）</span></div>}
   {stocks.length===0?<div style={{background:"#fff",border:`1px solid ${LINE}`,color:SUB}} className="rounded-lg mt-5 px-6 py-14 text-center text-[13px] leading-relaxed"><div className="flex justify-center mb-3" style={{color:"#B8B5AC"}}><Svg n="clip" s={28}/></div>{t("stEmpty")}</div>
   :<div className="grid sm:grid-cols-2 gap-3 mt-5">{stocks.map(st=>{const p=stProg(st);return <button key={st._id} onClick={()=>setCurId(st._id)} style={{background:"#fff",border:`1px solid ${LINE}`}} className="rounded-lg p-4 text-left hover:border-stone-300">
     <div className="flex items-start justify-between gap-2"><span className="text-[14px] font-medium leading-snug">{st.name}</span><StBadge st={st}/></div>
