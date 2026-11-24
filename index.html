@@ -49,7 +49,7 @@ function errKey(e){const c=(e&&e.code)||"";if(c==="auth/too-many-requests")retur
 let SECAPP=null;
 async function createAcct(u,pw,startN){if(!SECAPP)SECAPP=firebase.initializeApp(firebaseConfig,"acct-admin");const a=SECAPP.auth();try{await a.setPersistence(firebase.auth.Auth.Persistence.NONE);}catch(e){}
  for(let n=startN||0;n<(startN||0)+6;n++){const email=emailOf(u,n);try{const r=await a.createUserWithEmailAndPassword(email,pw);const uid=r.user.uid;try{await a.signOut();}catch(e){}
-   await DB.collection("logins").doc(u).set({email});await DB.collection("users").doc(uid).set({mustChange:true},{merge:true});return{uid,n,email};}
+   try{await DB.collection("users").doc(uid).set({mustChange:true},{merge:true});}catch(e){}try{await DB.collection("logins").doc(u).set({email});}catch(e){}return{uid,n,email};}
   catch(e){if(e&&e.code==="auth/email-already-in-use")continue;throw e;}}
  throw {code:"auth/email-already-in-use"};}
 try{DB.enablePersistence({synchronizeTabs:true}).catch(function(){});}catch(e){}
@@ -114,6 +114,7 @@ const DICT={
  sortDefault:{zh:"默认排序（编号）",en:"Default (No.)",th:"ค่าเริ่มต้น (เลข)"}, sortCapD:{zh:"资本化日期 新→旧",en:"Capitalized: newest",th:"วันที่ลงบัญชี ใหม่→เก่า"}, sortCapA:{zh:"资本化日期 旧→新",en:"Capitalized: oldest",th:"วันที่ลงบัญชี เก่า→ใหม่"}, sortValD:{zh:"原值 高→低",en:"Cost: high→low",th:"ราคาทุน สูง→ต่ำ"}, sortValA:{zh:"原值 低→高",en:"Cost: low→high",th:"ราคาทุน ต่ำ→สูง"},
  imp:{zh:"批量导入",en:"Import",th:"นำเข้า"}, impTitle:{zh:"批量导入资产",en:"Import assets",th:"นำเข้าทรัพย์สิน"}, impHint:{zh:"支持 Excel（.xlsx）或 CSV。可直接用 SAP 导出的资产清单，也可下载模板填写。已存在的 SAP 编号会跳过，不会覆盖。",en:"Excel (.xlsx) or CSV. Use the SAP asset export as is, or fill in the template. Existing SAP numbers are skipped, never overwritten.",th:"รองรับ Excel (.xlsx) หรือ CSV ใช้ไฟล์ส่งออกจาก SAP ได้เลย หรือกรอกตามแม่แบบ เลข SAP ที่มีอยู่แล้วจะถูกข้าม"}, impTpl:{zh:"下载模板",en:"Download template",th:"ดาวน์โหลดแม่แบบ"}, impPick:{zh:"选择文件",en:"Choose file",th:"เลือกไฟล์"}, impNew:{zh:"可导入",en:"Ready to import",th:"พร้อมนำเข้า"}, impDup:{zh:"已存在（跳过）",en:"Already exists (skipped)",th:"มีอยู่แล้ว (ข้าม)"}, impBad:{zh:"缺编号或名称（跳过）",en:"Missing No. or name (skipped)",th:"ไม่มีเลขหรือชื่อ (ข้าม)"}, impGo:{zh:"导入",en:"Import",th:"นำเข้า"}, impDone:{zh:"已导入",en:"Imported",th:"นำเข้าแล้ว"}, impFail:{zh:"读取文件失败，请确认是 Excel 或 CSV 文件。",en:"Could not read the file. Use an Excel or CSV file.",th:"อ่านไฟล์ไม่ได้ กรุณาใช้ไฟล์ Excel หรือ CSV"}, impNoCol:{zh:"没有找到“资产 / SAP编号”这一列，请检查表头。",en:"No “资产 / SAP编号” column found. Check the header row.",th:"ไม่พบคอลัมน์ “资产 / SAP编号” กรุณาตรวจหัวตาราง"},
  superAdmin:{zh:"超级管理员",en:"Super admin",th:"ผู้ดูแลสูงสุด"}, subAdmin:{zh:"子管理员",en:"Sub-admin",th:"ผู้ดูแลย่อย"}, permMgmt:{zh:"权限管理",en:"Permissions",th:"จัดการสิทธิ์"}, del:{zh:"删除",en:"Delete",th:"ลบ"},
+ showPwd:{zh:"显示密码",en:"Show password",th:"แสดงรหัสผ่าน"}, hidePwd:{zh:"隐藏密码",en:"Hide password",th:"ซ่อนรหัสผ่าน"},
  remember:{zh:"记住我（这台设备上保持登录）",en:"Keep me signed in on this device",th:"จดจำฉันไว้ในอุปกรณ์นี้"}, signingIn:{zh:"登录中…",en:"Signing in…",th:"กำลังเข้าสู่ระบบ…"}, loading:{zh:"加载中…",en:"Loading…",th:"กำลังโหลด…"},
  errTooMany:{zh:"尝试次数太多，请过几分钟再试。",en:"Too many attempts. Try again in a few minutes.",th:"ลองหลายครั้งเกินไป กรุณารอสักครู่"}, errNet:{zh:"网络连接失败，请检查网络后重试。",en:"Network error. Check the connection and try again.",th:"เครือข่ายขัดข้อง กรุณาลองใหม่"},
  errProvider:{zh:"登录服务未开启：请在 Firebase 控制台 → Authentication 开启“电子邮件/密码”登录方式。",en:"Sign-in is not enabled. Turn on Email/Password in Firebase console → Authentication.",th:"ยังไม่ได้เปิดการเข้าสู่ระบบ ให้เปิด Email/Password ใน Firebase console → Authentication"},
@@ -165,6 +166,8 @@ function Svg({n,s=16,style,cls}){
   qr:<g><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM21 14v.01M14 21h.01M17 21h4v-4"/></g>,
   clip:<g><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1"/><path d="M9 13l2 2 4-4.5"/></g>,
   download:<g><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></g>,
+  eye:<g><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></g>,
+  eyeOff:<g><path d="M17.9 17.9A10.4 10.4 0 0 1 12 19c-6.5 0-10-7-10-7a18.5 18.5 0 0 1 5.1-5.9M9.9 5.2A9.6 9.6 0 0 1 12 5c6.5 0 10 7 10 7a18.6 18.6 0 0 1-2.2 3.2M14.1 14.2a3 3 0 1 1-4.2-4.3"/><path d="M2 2l20 20"/></g>,
  };
  return <svg {...c}>{P[n]}</svg>;
 }
@@ -232,16 +235,24 @@ function App(){
  function delPhotoIdx(id,idx){const u=(photos[id]||[])[idx];if(u&&/^https?:/.test(u)){try{ST.refFromURL(u).delete().catch(()=>{});}catch(e){}}setPhotos(p=>{const list=(p[id]||[]).filter((_,i)=>i!==idx);DB.collection("photos").doc(String(id)).set({list});return{...p,[id]:list};});patch(id,{},{d:today(),t:"照片",x:"删除照片",by:who});}
  function gotoLedger(f){setFDept(f.dept||"");setFStat(f.status||"");setFCat(f.cat||"");setQ("");setView("ledger");}
 /* 旧账号迁移：数据库规则还没收紧时，用旧的明文密码登录一次，就在 Firebase Auth 建好账号，并把明文密码从配置里删掉 */
+ /* 把旧账号（配置里有明文密码、还没有 uid）接到 Firebase 登录用户上。先写最关键的 config，其他写入失败不影响登录 */
+ async function linkLegacy(u,p,uid,email){let snap;try{snap=await CFG().get();}catch(e){return false;}if(!snap.exists)return false;const c=snap.data()||{};
+  if((c.accounts||[]).some(x=>x.uid===uid))return true;
+  const a=(c.accounts||[]).find(x=>normU(x.u)===u&&x.p===p&&!x.uid);if(!a)return false;
+  const accounts=(c.accounts||[]).map(x=>{if(x!==a)return x;const y={...x,u,uid};delete y.p;return y;});
+  await CFG().set({accounts,uids:[...new Set([...(c.uids||[]),uid])],...(a.role==="super"?{superUid:uid}:{})},{merge:true});
+  try{await DB.collection("users").doc(uid).set({mustChange:true},{merge:true});}catch(e){}
+  try{await DB.collection("logins").doc(u).set({email});}catch(e){}
+  return true;}
+ /* 旧账号迁移：数据库规则还没收紧时，用旧的明文密码登录一次，就在 Firebase Auth 建好账号，并把明文密码从配置里删掉 */
  async function legacyLogin(u,p){let snap;try{snap=await CFG().get();}catch(e){return false;}if(!snap.exists)return false;const c=snap.data()||{};
-  const a=(c.accounts||[]).find(x=>normU(x.u)===u&&x.p===p&&!x.uid);if(!a)return false;const email=emailOf(u);let cred;
+  if(!(c.accounts||[]).some(x=>normU(x.u)===u&&x.p===p&&!x.uid))return false;const email=emailOf(u);let cred;
   try{cred=await AUTH.createUserWithEmailAndPassword(email,p);}catch(e){if(e&&e.code==="auth/email-already-in-use")return false;throw e;}
-  const uid=cred.user.uid;const accounts=(c.accounts||[]).map(x=>{if(x!==a)return x;const y={...x,u,uid};delete y.p;return y;});
-  await DB.collection("logins").doc(u).set({email});await DB.collection("users").doc(uid).set({mustChange:true},{merge:true});
-  await CFG().set({accounts,uids:[...new Set([...(c.uids||[]),uid])],...(a.role==="super"?{superUid:uid}:{})},{merge:true});return true;}
+  return linkLegacy(u,p,cred.user.uid,email);}
  async function doLogin(u0,p,remember){const u=normU(u0);if(!u||!p)return"loginErr";setLoginBusy(true);
   try{await AUTH.setPersistence(remember?firebase.auth.Auth.Persistence.LOCAL:firebase.auth.Auth.Persistence.SESSION);
    let email=emailOf(u);try{const d=await DB.collection("logins").doc(u).get();if(d.exists&&d.data().email)email=d.data().email;}catch(e){}
-   try{await AUTH.signInWithEmailAndPassword(email,p);}
+   try{const cr=await AUTH.signInWithEmailAndPassword(email,p);try{await linkLegacy(u,p,cr.user.uid,email);}catch(e){}}
    catch(e){const k=errKey(e);if(k!=="loginErr")return k;if(!(await legacyLogin(u,p)))return"loginErr";}
    try{localStorage.setItem(LASTU,u);localStorage.setItem(REMEMBER,remember?"1":"0");}catch(e){}return"";
   }catch(e){return errKey(e);}finally{setLoginBusy(false);}}
@@ -811,7 +822,7 @@ function ImportModal({existing,onClose,onImport}){
 /* ---------- 登录 ---------- */
 function Login({t,lang,setLang,ready,busy,onLogin,denied,onLogout}){
  const ls=k=>{try{return localStorage.getItem(k);}catch(e){return null;}};
- const [u,setU]=useState(()=>ls(LASTU)||""),[p,setP]=useState(""),[remember,setRemember]=useState(()=>ls(REMEMBER)!=="0"),[e,setE]=useState("");
+ const [show,setShow]=useState(false); const [u,setU]=useState(()=>ls(LASTU)||""),[p,setP]=useState(""),[remember,setRemember]=useState(()=>ls(REMEMBER)!=="0"),[e,setE]=useState("");
  async function go(ev){ev.preventDefault();if(!ready||busy||!onLogin)return;const k=await onLogin(u,p,remember);if(k){setE(k);setP("");}}
  const lab="text-[12px]", box={border:`1px solid ${LINE}`};
  return <div className="fixed inset-0 z-[90] flex items-center justify-center p-4 overflow-y-auto" style={{background:PAPER}}>
@@ -822,7 +833,7 @@ function Login({t,lang,setLang,ready,busy,onLogin,denied,onLogout}){
    {denied?<div className="mt-6 space-y-4"><div className="text-[13px] leading-relaxed rounded-md px-3 py-2.5" style={{background:"#F6E9E7",color:"#8E3A31"}}>{t("noAccess")}</div><button type="button" onClick={onLogout} style={{background:AI}} className="w-full h-10 rounded-md text-white text-[13.5px]">{t("logout")}</button></div>
    :<form className="mt-6 space-y-3.5" onSubmit={go} autoComplete="on">
     <label className="block"><span style={{color:SUB}} className={lab}>{t("account")}</span><input name="username" autoComplete="username" autoCapitalize="none" spellCheck={false} value={u} onChange={ev=>{setU(ev.target.value);setE("");}} autoFocus={!u} style={box} className="mt-1 w-full rounded-md px-3 h-10 text-[14px] outline-none focus:border-stone-400"/></label>
-    <label className="block"><span style={{color:SUB}} className={lab}>{t("password")}</span><input name="password" type="password" autoComplete="current-password" value={p} onChange={ev=>{setP(ev.target.value);setE("");}} autoFocus={!!u} style={box} className="mt-1 w-full rounded-md px-3 h-10 text-[14px] outline-none focus:border-stone-400"/></label>
+    <div><label htmlFor="login-pw" style={{color:SUB}} className={lab}>{t("password")}</label><div className="relative mt-1"><input id="login-pw" name="password" type={show?"text":"password"} autoComplete="current-password" value={p} onChange={ev=>{setP(ev.target.value);setE("");}} autoFocus={!!u} style={box} className="w-full rounded-md pl-3 pr-11 h-10 text-[14px] outline-none focus:border-stone-400"/><button type="button" onClick={()=>setShow(v=>!v)} aria-label={show?t("hidePwd"):t("showPwd")} title={show?t("hidePwd"):t("showPwd")} aria-pressed={show} className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-9 flex items-center justify-center rounded hover:bg-stone-100" style={{color:show?AI:SUB}}><Svg n={show?"eyeOff":"eye"} s={18}/></button></div></div>
     <label className="flex items-center gap-2 text-[12.5px] cursor-pointer select-none" style={{color:"#5C594F"}}><input type="checkbox" checked={remember} onChange={ev=>setRemember(ev.target.checked)} className="w-4 h-4"/>{t("remember")}</label>
     {e&&<div role="alert" style={{color:"#B04A3F"}} className="text-[12.5px] leading-relaxed">{t(e)}</div>}
     <button type="submit" disabled={!ready||busy} style={{background:ready&&!busy?AI:"#C9C6BE"}} className="w-full h-10 rounded-md text-white text-[13.5px]">{busy?t("signingIn"):ready?t("login"):t("loading")}</button>
@@ -832,7 +843,7 @@ function Login({t,lang,setLang,ready,busy,onLogin,denied,onLogout}){
 }
 /* ---------- 修改密码（首次登录强制 / 平时自愿） ---------- */
 function ChangePwd({user,forced,onClose,onDone}){
- const {t}=useL(); const [cur,setCur]=useState(""),[n1,setN1]=useState(""),[n2,setN2]=useState(""),[e,setE]=useState(""),[busy,setBusy]=useState(false),[needCur,setNeedCur]=useState(!forced);
+ const {t}=useL(); const [show,setShow]=useState(false); const [cur,setCur]=useState(""),[n1,setN1]=useState(""),[n2,setN2]=useState(""),[e,setE]=useState(""),[busy,setBusy]=useState(false),[needCur,setNeedCur]=useState(!forced);
  async function go(ev){ev.preventDefault();setE("");if(n1.length<6)return setE(t("pwdShort"));if(n1!==n2)return setE(t("pwdMismatch"));setBusy(true);
   try{if(needCur){await user.reauthenticateWithCredential(firebase.auth.EmailAuthProvider.credential(user.email,cur));}
    await user.updatePassword(n1);await DB.collection("users").doc(user.uid).set({mustChange:false},{merge:true});onDone();}
@@ -841,9 +852,10 @@ function ChangePwd({user,forced,onClose,onDone}){
  const body=<form onSubmit={go} autoComplete="on">
   {forced&&<p className="text-[12.5px] leading-relaxed mb-4" style={{color:"#5C594F"}}>{t("mustChgHint")}</p>}
   <input type="text" name="username" autoComplete="username" value={user.email||""} readOnly hidden/>
-  {needCur&&<Row label={t("curPwd")}><input type="password" autoComplete="current-password" value={cur} onChange={ev=>setCur(ev.target.value)} style={inp} className={I}/></Row>}
-  <Row label={t("newPwd")}><input type="password" autoComplete="new-password" value={n1} onChange={ev=>setN1(ev.target.value)} style={inp} className={I}/></Row>
-  <Row label={t("newPwd2")}><input type="password" autoComplete="new-password" value={n2} onChange={ev=>setN2(ev.target.value)} style={inp} className={I}/></Row>
+  {needCur&&<Row label={t("curPwd")}><input type={show?"text":"password"} autoComplete="current-password" value={cur} onChange={ev=>setCur(ev.target.value)} style={inp} className={I}/></Row>}
+  <Row label={t("newPwd")}><input type={show?"text":"password"} autoComplete="new-password" value={n1} onChange={ev=>setN1(ev.target.value)} style={inp} className={I}/></Row>
+  <Row label={t("newPwd2")}><input type={show?"text":"password"} autoComplete="new-password" value={n2} onChange={ev=>setN2(ev.target.value)} style={inp} className={I}/></Row>
+  <label className="flex items-center gap-2 text-[12.5px] mb-2 cursor-pointer select-none" style={{color:"#5C594F"}}><input type="checkbox" checked={show} onChange={ev=>setShow(ev.target.checked)} className="w-4 h-4"/>{t("showPwd")}</label>
   {e&&<div role="alert" style={{color:"#B04A3F"}} className="text-[12.5px] mb-2">{e}</div>}
   <div className="flex justify-end gap-2 mt-2">{!forced&&<button type="button" onClick={onClose} style={{border:`1px solid ${LINE}`}} className="h-9 px-4 rounded-md text-[13px]">{t("cancel")}</button>}<button type="submit" disabled={busy} style={{background:busy?"#C9C6BE":AI}} className="h-9 px-4 rounded-md text-white text-[13px]">{busy?t("saving"):t("save")}</button></div>
  </form>;
